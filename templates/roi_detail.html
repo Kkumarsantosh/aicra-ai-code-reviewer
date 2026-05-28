@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .roi-detail-container {
+        width: 100%;
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* --- Executive HUD --- */
+    .executive-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .exec-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .exec-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 4px;
+        background: var(--accent-primary);
+    }
+
+    .exec-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 12px;
+        letter-spacing: 0.05em;
+    }
+
+    .exec-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+    }
+
+    .exec-meta {
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-top: 8px;
+    }
+
+    /* --- Narrative Box --- */
+    .narrative-box {
+        background: var(--bg-sidebar);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--accent-primary);
+        border-radius: 12px;
+        padding: 24px 32px;
+        margin-bottom: 40px;
+    }
+
+    .narrative-title {
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--accent-primary);
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        letter-spacing: 0.1em;
+    }
+
+    .narrative-text {
+        font-size: 1.125rem;
+        font-weight: 500;
+        color: var(--text-main);
+        line-height: 1.6;
+        font-style: italic;
+    }
+
+    /* --- Intelligence Matrix Cards --- */
+    .intel-matrix {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 20px;
+        padding: 0;
+        margin-bottom: 40px;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+        overflow: hidden;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .intel-header {
+        background: #161b22;
+        padding: 24px 32px;
+        border-bottom: 1px solid #30363d;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .intel-header h3 {
+        margin: 0;
+        font-size: 1.125rem;
+        font-weight: 800;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .intel-body {
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .intel-row {
+        display: flex;
+        align-items: flex-start;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        padding-bottom: 16px;
+    }
+
+    .intel-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .intel-label {
+        width: 180px;
+        color: #8b949e;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        flex-shrink: 0;
+        padding-top: 4px;
+    }
+
+    .intel-value {
+        flex: 1;
+        font-size: 0.9rem;
+        color: #c9d1d9;
+        line-height: 1.6;
+    }
+
+    .file-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px;
+        background: rgba(48, 54, 61, 0.3);
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+        color: #8b949e;
+    }
+
+    .diff-added { color: #3fb950; font-weight: 700; }
+    .diff-deleted { color: #f85149; font-weight: 700; }
+
+    .badge-innovation { color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.05); }
+    .badge-remediation { color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.05); }
+
+    /* --- Tables --- */
+    .ledger-table {
+        width: 100%;
+        font-size: 0.8125rem;
+    }
+
+    .ledger-table th { background: var(--bg-sidebar); padding: 10px 16px; text-transform: uppercase; font-size: 0.65rem; }
+    .ledger-table td { padding: 12px 16px; }
+
+    .overridden-card {
+        border-left: 4px solid var(--accent-success) !important;
+        background: rgba(16, 185, 129, 0.02) !important;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="roi-detail-container">
+    {% if analysis.status == 'complete' %}
+    {% set s = report.summary %}
+    {% set intel = report.executive_intelligence %}
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <nav class="breadcrumb" style="margin-bottom: 12px;">
+                <a href="/roi" class="breadcrumb-item">Engineering Intelligence</a>
+                <span class="breadcrumb-item active">Audit #{{ analysis.id }}</span>
+            </nav>
+            <h1 style="margin: 0;">Factual Audit Report</h1>
+            <p class="text-muted" style="margin-top: 8px;">
+                <i class="fas fa-cube"></i> {{ analysis.repo_name }}
+                <span style="margin: 0 12px; opacity: 0.3;">|</span>
+                <i class="fas fa-code-branch"></i> {{ analysis.branch }}
+            </p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <a href="/roi/{{ analysis.id }}/report" class="btn btn-primary">
+                <i class="fas fa-file-invoice"></i> View Statement
+            </a>
+            <a href="/roi" class="btn btn-outline">
+                <i class="fas fa-chevron-left"></i> Back to Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Executive HUD -->
+    <div class="executive-grid">
+        <div class="exec-card">
+            <div class="exec-label">Work Delivered</div>
+            <div class="exec-value" style="color: var(--accent-success);">{{ intel.dashboard.work_delivered }}</div>
+            <div class="exec-meta text-muted">LOGICAL_UNITS</div>
+        </div>
+        <div class="exec-card">
+            <div class="exec-label">Structural Footprint</div>
+            <div class="exec-value" style="color: var(--accent-primary);">{{ intel.dashboard.structural_footprint }}</div>
+            <div class="exec-meta text-muted">FILES_IMPACTED</div>
+        </div>
+        <div class="exec-card" style="text-align: left;">
+            <div class="exec-label">Audit Status</div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.3;">
+                {{ intel.dashboard.audit_status }}
+            </div>
+            <div class="exec-meta" style="color: var(--accent-success);">FACTUAL_VERIFIED</div>
+        </div>
+    </div>
+
+    <!-- Narrative -->
+    <div class="narrative-box">
+        <div class="narrative-title">Engineering Intelligence Narrative</div>
+        <div class="narrative-text">
+            "{{ intel.management_summary }}"
+        </div>
+    </div>
+
+    <!-- Productivity Table Section -->
+    <div class="card" style="margin-bottom: 40px; padding: 0;">
+        <div style="padding: 24px; border-bottom: 1px solid var(--border);">
+            <h3 style="margin: 0; font-size: 1rem;"><i class="fas fa-chart-network text-accent"></i> Work Distribution Ledger</h3>
+        </div>
+        <table class="ledger-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Intelligence Unit</th>
+                    <th>Business Context</th>
+                    <th style="text-align: right;">Impact</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in intel.quadrant_ledger %}
+                <tr>
+                    <td>
+                        <span class="stat-pill {% if item.quadrant == 'New Feature' %}stat-pill-success{% elif item.quadrant == 'Technical Debt' %}stat-pill-primary{% endif %}">
+                            {{ item.quadrant }}
+                        </span>
+                    </td>
+                    <td style="font-weight: 700;">{{ item.unit }}</td>
+                    <td class="text-muted">{{ item.business_value }}</td>
+                    <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: var(--accent-success);">{{ item.impact }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+        Factual Project Intent
+        <span style="height: 1px; flex: 1; background: var(--border);"></span>
+    </h2>
+
+    {% for unit in report.logical_units %}
+    {% set audit = unit.get('shadow_audit', {}) %}
+    {% set dc = audit.get('deterministic_complexity', {}) %}
+    {% set files = dc.get('file_changes', []) %}
+    
+    <div class="intel-matrix" id="unit-{{ loop.index }}">
+        <div class="intel-header">
+            <h3><i class="fas fa-layer-group"></i> {{ unit.unit_name }}</h3>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                {% if unit.is_overridden %}
+                <span class="stat-pill stat-pill-success" style="font-size: 0.6rem;"><i class="fas fa-user-edit"></i> OVERRIDDEN</span>
+                {% endif %}
+                <span class="stat-pill" style="background: rgba(255,255,255,0.05); color: #8b949e; border: 1px solid #30363d; font-size: 0.65rem;">
+                    <i class="fas fa-fingerprint"></i> UNIT_ID: {{ loop.index }}
+                </span>
+            </div>
+        </div>
+
+        <div class="intel-body">
+            <!-- Classification -->
+            <div class="intel-row">
+                <div class="intel-label"><i class="fas fa-tag"></i> Classification</div>
+                <div class="intel-value">
+                    <span class="stat-pill {% if audit.get('work_category') == 'INNOVATION' %}badge-innovation{% else %}badge-remediation{% endif %}">
+                        {{ audit.get('work_category', 'N/A') }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Complexity -->
+            <div class="intel-row">
+                <div class="intel-label"><i class="fas fa-brain"></i> Complexity</div>
+                <div class="intel-value">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <span style="color: #fbbf24; font-weight: 800; font-size: 1rem;">Tier {{ audit.get('complexity_tier', 'N/A') }}</span>
+                            <span style="color: #8b949e; margin-left: 12px; font-size: 0.85rem;">— {{ audit.get('complexity_justification', 'Automated calculation') }}</span>
+                        </div>
+                        <button class="btn btn-outline" style="padding: 4px 12px; font-size: 0.7rem; background: transparent; border-color: #30363d; color: #8b949e;" onclick="toggleOverrideForm('{{ loop.index }}')">
+                            <i class="fas fa-edit"></i> Adjust Tier
+                        </button>
+                    </div>
+
+                    <!-- Manual Override Form -->
+                    <div id="override-form-{{ loop.index }}" style="display: none; margin-top: 20px; background: #161b22; padding: 20px; border-radius: 12px; border: 1px solid var(--accent-primary);">
+                        <form action="/roi/override" method="POST">
+                            <input type="hidden" name="analysis_id" value="{{ analysis.id }}">
+                            <input type="hidden" name="repo_id" value="{{ analysis.repo_id }}">
+                            <input type="hidden" name="unit_name" value="{{ unit.unit_name }}">
+                            <div style="display: grid; grid-template-columns: 160px 1fr auto; gap: 16px; align-items: flex-end;">
+                                <div>
+                                    <label style="font-size: 0.65rem; font-weight: 800; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; display: block;">Complexity Tier</label>
+                                    <select name="tier" class="form-control" style="background: #0d1117; border: 1px solid #30363d; color: #fff; height: 38px;">
+                                        <option value="1" {% if audit.complexity_tier == 1 %}selected{% endif %}>Tier 1 (Trivial)</option>
+                                        <option value="2" {% if audit.complexity_tier == 2 %}selected{% endif %}>Tier 2 (Simple)</option>
+                                        <option value="3" {% if audit.complexity_tier == 3 %}selected{% endif %}>Tier 3 (Moderate)</option>
+                                        <option value="4" {% if audit.complexity_tier == 4 %}selected{% endif %}>Tier 4 (Complex)</option>
+                                        <option value="5" {% if audit.complexity_tier == 5 %}selected{% endif %}>Tier 5 (Architectural)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.65rem; font-weight: 800; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; display: block;">Reason for Correction</label>
+                                    <input type="text" name="reason" class="form-control" style="background: #0d1117; border: 1px solid #30363d; color: #fff; height: 38px;" placeholder="Describe why this tier was adjusted...">
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="height: 38px;"><i class="fas fa-check"></i> Apply</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Files Changed -->
+            <div class="intel-row">
+                <div class="intel-label"><i class="fas fa-file-code"></i> Files Changed</div>
+                <div class="intel-value">
+                    <div style="font-weight: 800; margin-bottom: 12px; color: #e2e8f0;">{{ files|length }} Entities</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        {% for f in files[:6] %}
+                        <div class="file-pill">
+                            <i class="fas fa-file" style="font-size: 0.6rem; opacity: 0.5;"></i>
+                            <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.file }}</span>
+                            <span class="diff-added">+{{ f.added }}</span>
+                            <span class="diff-deleted">-{{ f.deleted }}</span>
+                        </div>
+                        {% endfor %}
+                        {% if files|length > 6 %}
+                        <div class="file-pill" style="border-style: dashed; background: transparent;">
+                            <i class="fas fa-ellipsis"></i> [... {{ files|length - 6 }} more files]
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Code -->
+            <div class="intel-row">
+                <div class="intel-label"><i class="fas fa-chart-bar"></i> Total Code</div>
+                <div class="intel-value">
+                    <span style="color: #3fb950; font-weight: 800; font-size: 1rem;">+{{ dc.get('added_logic', 0) }} lines of logic</span>
+                    <span style="color: #8b949e; margin-left: 12px; font-size: 0.85rem;">(excluding tests and configuration)</span>
+                </div>
+            </div>
+
+            <!-- Business Impact -->
+            <div class="intel-row">
+                <div class="intel-label"><i class="fas fa-bullseye"></i> Business Impact</div>
+                <div class="intel-value" style="color: #e2e8f0;">
+                    {{ audit.get('executive_summary', 'Factual project intent analysis.') }}
+                </div>
+            </div>
+
+            <!-- AI Assessment -->
+            <div class="intel-row">
+                <div class="intel-label"><i class="fas fa-shield-halved"></i> AI Assessment</div>
+                <div class="intel-value">
+                    {% if audit.get('structural_risks') %}
+                        {% for risk in audit.structural_risks %}
+                        <div style="background: rgba(248, 81, 73, 0.05); border: 1px solid rgba(248, 81, 73, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div style="color: #f85149; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">
+                                        <i class="fas fa-triangle-exclamation"></i> {{ risk.severity }} RISK IDENTIFIED
+                                    </div>
+                                    <div style="color: #ffffff; font-weight: 700; margin-bottom: 4px;">{{ risk.message }}</div>
+                                    <div style="color: #8b949e; font-size: 0.8rem;">Recommendation: {{ risk.recommendation }}</div>
+                                </div>
+                                <button class="btn btn-outline" style="padding: 4px 12px; font-size: 0.7rem; border-color: rgba(248, 81, 73, 0.2); color: #f85149;" onclick="toggleDismissForm('{{ loop.index0 }}-{{ loop.parent.index0 }}')">
+                                    <i class="fas fa-eye-slash"></i> Dismiss
+                                </button>
+                            </div>
+                            
+                            <!-- Dismiss Form -->
+                            <div id="dismiss-form-{{ loop.index0 }}-{{ loop.parent.index0 }}" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(248, 81, 73, 0.2);">
+                                <form action="/roi/dismiss-risk" method="POST" style="display: flex; gap: 12px;">
+                                    <input type="hidden" name="analysis_id" value="{{ analysis.id }}">
+                                    <input type="hidden" name="repo_id" value="{{ analysis.repo_id }}">
+                                    <input type="hidden" name="risk_hash" value="{{ risk.risk_hash }}">
+                                    <input type="text" name="reason" class="form-control" style="background: #0d1117; border: 1px solid #30363d; color: #fff; height: 32px; font-size: 0.75rem;" placeholder="Reason for dismissal..." required>
+                                    <button type="submit" class="btn btn-primary" style="height: 32px; font-size: 0.75rem; padding: 0 16px;"><i class="fas fa-check"></i> Submit</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color: #3fb950; font-weight: 800;"><i class="fas fa-check-circle"></i> NO STRUCTURAL RISKS DETECTED</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+
+    {% elif analysis.status == 'failed' %}
+    <div class="card" style="text-align: center; padding: 80px; border-top: 4px solid var(--accent-error);">
+        <i class="fas fa-circle-exclamation" style="font-size: 3rem; color: var(--accent-error); margin-bottom: 24px;"></i>
+        <h2>Intelligence Link Severed</h2>
+        <p class="text-muted" style="max-width: 500px; margin: 12px auto 24px;">The neural analysis stream encountered a critical error during logic derivation.</p>
+        <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.8rem; margin-bottom: 32px;">
+            ERROR_LOG: {{ report }}
+        </div>
+        <a href="/roi" class="btn btn-primary">
+            <i class="fas fa-rotate-right"></i> Restart Analysis
+        </a>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 120px 40px;">
+        <div class="stat-card-icon" style="width: 80px; height: 80px; font-size: 2rem; margin: 0 auto 32px;">
+            <i class="fas fa-microchip fa-spin"></i>
+        </div>
+        <h2 style="font-size: 1.75rem; font-weight: 800;">Synchronizing Inference Stream</h2>
+        <p class="text-muted" style="max-width: 450px; margin: 12px auto 0; font-size: 1rem; line-height: 1.6;">
+            Extracting project intent, grouping logical units, and analyzing structural footprint.
+        </p>
+        <div style="margin-top: 48px; display: flex; justify-content: center; gap: 12px;">
+            <div class="pulse"></div>
+            <div class="pulse" style="animation-delay: 0.5s"></div>
+            <div class="pulse" style="animation-delay: 1s"></div>
+        </div>
+    </div>
+    <script>setTimeout(() => location.reload(), 5000);</script>
+    {% endif %}
+    
+    <script>
+        function toggleOverrideForm(index) {
+            const form = document.getElementById(`override-form-${index}`);
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
+        }
+
+        function toggleDismissForm(id) {
+            const form = document.getElementById(`dismiss-form-${id}`);
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
+        }
+    </script>
+</div>
+{% endblock %}

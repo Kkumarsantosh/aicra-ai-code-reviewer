@@ -1,0 +1,797 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    /* --- Modern Layout & Fade-In --- */
+    .fds-detail-container {
+        width: 100%;
+        animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* --- Sophisticated Page Header --- */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 32px;
+        padding-bottom: 32px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .doc-title-section h1 {
+        font-size: 2.25rem;
+        font-weight: 900;
+        letter-spacing: -1.5px;
+        margin: 0;
+        color: var(--text-main);
+        line-height: 1.1;
+    }
+
+    .doc-stats-strip {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        margin-top: 16px;
+    }
+
+    .doc-stat {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    .doc-stat i { font-size: 1rem; color: var(--accent-primary); }
+
+    /* --- 3-Zone Architecture --- */
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 40px;
+        align-items: start;
+    }
+
+    @media (max-width: 1200px) { .detail-grid { grid-template-columns: 1fr; } }
+
+    /* --- Main Requirements Feed --- */
+    .feed-container {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .req-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--bg-deep);
+    }
+
+    .section-title {
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: var(--text-main);
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-box {
+        position: relative;
+        flex: 1;
+        max-width: 320px;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-dim);
+        font-size: 0.9rem;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 16px 12px 44px;
+        background: var(--bg-sidebar);
+        border: 1px solid transparent;
+        border-radius: 14px;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .search-input:focus {
+        background: white;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+        outline: none;
+    }
+
+    /* --- Requirement Cards --- */
+    .req-feed {
+        min-height: 500px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .req-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+    }
+
+    .req-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent-primary);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .req-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .req-id {
+        font-family: var(--font-mono);
+        font-weight: 800;
+        color: var(--accent-primary);
+        font-size: 0.75rem;
+        background: var(--accent-glow);
+        padding: 6px 12px;
+        border-radius: 8px;
+    }
+
+    .req-type-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        background: var(--bg-sidebar);
+        border-radius: 6px;
+        color: var(--text-dim);
+    }
+
+    .req-body {
+        color: var(--text-main);
+        font-size: 0.95rem;
+        line-height: 1.7;
+    }
+
+    /* --- Pagination --- */
+    .req-pager {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        margin-top: 40px;
+        padding-top: 24px;
+        border-top: 1px solid var(--bg-deep);
+    }
+
+    .page-btn {
+        height: 40px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: white;
+        color: var(--text-muted);
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--accent-primary); }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* --- Side Panel --- */
+    .side-card {
+        background: var(--bg-sidebar);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 28px;
+        margin-bottom: 24px;
+    }
+
+    .history-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        text-decoration: none;
+        transition: all 0.2s;
+        margin-bottom: 12px;
+    }
+
+    .history-item:hover { border-color: var(--accent-primary); transform: translateX(4px); }
+
+    /* --- BEAUTIFIED NEURAL CONSOLE (RAW BUFFER) --- */
+    .neural-console-section {
+        margin-top: 80px;
+        padding-top: 40px;
+        border-top: 1px solid var(--border-light);
+    }
+
+    .console-reveal-btn {
+        width: 100%;
+        background: var(--text-main);
+        color: white;
+        border: none;
+        padding: 24px;
+        border-radius: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    }
+
+    .console-reveal-btn:hover {
+        background: var(--accent-primary);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px var(--accent-glow);
+    }
+
+    .console-reveal-btn.active {
+        background: var(--bg-sidebar);
+        color: var(--text-main);
+        border: 1px solid var(--border);
+        transform: none;
+        box-shadow: none;
+    }
+
+    .neural-console-window {
+        display: none;
+        margin-top: 32px;
+        background: #050505;
+        border-radius: 24px;
+        overflow: hidden;
+        border: 1px solid #1a1a1a;
+        box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+        animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .console-chrome {
+        background: #0f0f0f;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #1a1a1a;
+    }
+
+    .console-title {
+        color: #666;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .console-title .blink {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-primary);
+        border-radius: 50%;
+        animation: blink 1s infinite;
+    }
+
+    .console-layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        height: 600px;
+    }
+
+    .console-meta-rail {
+        background: #0a0a0a;
+        border-right: 1px solid #1a1a1a;
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+
+    .meta-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .meta-stat .label {
+        font-size: 0.6rem;
+        font-weight: 800;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .meta-stat .value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        color: #aaa;
+    }
+
+    .console-main-view {
+        overflow-y: auto;
+        padding: 0;
+        position: relative;
+        background: #050505;
+    }
+
+    .code-editor-container {
+        display: flex;
+        min-height: 100%;
+    }
+
+    .line-numbers {
+        width: 50px;
+        padding: 32px 0;
+        background: #080808;
+        border-right: 1px solid #1a1a1a;
+        color: #333;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        text-align: right;
+        padding-right: 12px;
+        user-select: none;
+    }
+
+    .code-content {
+        flex: 1;
+        padding: 32px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        line-height: 1.8;
+        color: #d1d1d1;
+        white-space: pre-wrap;
+    }
+
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* --- CRITICAL: Modal High-Fidelity --- */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(12, 15, 20, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        z-index: 11000;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: all 0.4s ease;
+    }
+
+    .modal-overlay.active { display: flex; opacity: 1; }
+
+    .modal-card-neural {
+        width: 100%;
+        max-width: 600px;
+        background: white;
+        border-radius: 32px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.5);
+        transform: translateY(30px) scale(0.95);
+        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.active .modal-card-neural { transform: translateY(0) scale(1); }
+
+    .neural-modal-header {
+        height: 120px;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .neural-icon-orb {
+        width: 72px; height: 72px;
+        background: white; border-radius: 24px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2rem; color: var(--accent-primary);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        z-index: 2; transform: rotate(-5deg);
+    }
+
+    .neural-modal-body { padding: 40px; text-align: center; }
+    .modal-title { font-size: 1.75rem; font-weight: 900; color: var(--text-main); margin-bottom: 12px; letter-spacing: -1px; }
+    .modal-text { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 32px; }
+
+    .neural-input-wrapper {
+        background: var(--bg-sidebar); border: 2px solid var(--border);
+        border-radius: 20px; padding: 20px; transition: all 0.3s;
+        margin-bottom: 32px; text-align: left;
+    }
+
+    .neural-input-wrapper:focus-within { border-color: var(--accent-primary); background: white; box-shadow: 0 0 0 6px var(--accent-glow); }
+
+    .neural-textarea {
+        width: 100%; min-height: 180px; background: transparent; border: none; outline: none;
+        font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; line-height: 1.7;
+        color: var(--text-main); resize: none;
+    }
+
+    .neural-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
+
+    .btn-neural-confirm {
+        background: var(--accent-primary); color: white; border: none; height: 56px;
+        border-radius: 16px; font-weight: 800; font-size: 1rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+
+    .btn-neural-confirm:hover { background: var(--accent-secondary); transform: translateY(-2px); box-shadow: 0 10px 20px var(--accent-glow); }
+
+    .btn-neural-cancel {
+        background: var(--bg-sidebar); color: var(--text-muted); border: 1px solid var(--border);
+        height: 56px; border-radius: 16px; font-weight: 700; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fds-detail-container">
+    <!-- Sophisticated Header -->
+    <header class="page-header">
+        <div class="doc-title-section">
+            <nav class="breadcrumb">
+                <a href="/fds" class="breadcrumb-item"><i class="fas fa-layer-group"></i> Registry</a>
+                <span class="breadcrumb-item active"><i class="fas fa-microchip"></i> Matrix Detail</span>
+            </nav>
+            <h1>{{ doc.title }}</h1>
+            <div class="doc-stats-strip">
+                <div class="doc-stat"><i class="fas fa-calendar-day"></i> <strong>{{ doc.created_at.strftime('%b %d, %Y') }}</strong></div>
+                {% if doc.repo_name %}
+                <div class="doc-stat"><i class="fas fa-microchip"></i> Node: <strong>{{ doc.repo_name }}</strong></div>
+                {% endif %}
+                <div class="doc-stat"><i class="fas fa-dna"></i> <strong>{{ reqs|length }}</strong> Vectors</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="btn btn-primary" style="height: 44px; border-radius: 12px;" onclick="openAddReqModal()">
+                <i class="fas fa-plus-circle"></i> Inject Vector
+            </button>
+            <button class="btn btn-outline btn-icon" style="width: 44px; height: 44px; border-radius: 12px; color: var(--accent-error);" onclick="confirmDeleteFds()">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <div style="width: 1px; height: 32px; background: var(--border); margin: 0 8px;"></div>
+            <a href="/fds" class="btn btn-outline" style="height: 44px; border-radius: 12px; padding: 0 20px;"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+    </header>
+
+    <div class="detail-grid">
+        <div class="feed-container">
+            <div class="req-section-header">
+                <div class="section-title"><i class="fas fa-fingerprint text-accent"></i> Logical Vectors</div>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="req-search" class="search-input" placeholder="Filter vectors..." oninput="filterRequirements()">
+                </div>
+            </div>
+            
+            <!-- PAGE INDEX NAVIGATION -->
+            {% if sections %}
+            <div class="page-index-nav" style="margin-bottom: 32px; padding: 16px; background: var(--bg-sidebar); border-radius: 16px; border: 1px solid var(--border);">
+                <div class="section-title" style="margin-bottom: 12px; font-size: 0.7rem;"><i class="fas fa-map"></i> Structural Index (PageIndex)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <button class="stat-pill" onclick="filterBySection(null)" style="cursor: pointer; border: 1px solid var(--border);">All Sections</button>
+                    {% for s in sections %}
+                    <button class="stat-pill" onclick="filterBySection({{ s.id }})" style="cursor: pointer; border: 1px solid var(--border); background: white;" title="{{ s.summary }}">
+                        {{ s.title }} <span style="opacity: 0.5; margin-left: 4px;">P.{{ s.page_start }}-{{ s.page_end }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div id="req-feed" class="req-feed"></div>
+            <div id="req-pager" class="req-pager"></div>
+        </div>
+
+        <aside class="side-panel">
+            <div class="side-card">
+                <div class="section-title" style="margin-bottom: 20px;"><i class="fas fa-play-circle text-accent"></i> Intel Scan</div>
+                {% if doc.repo_id %}
+                <form action="/fds/{{ doc.id }}/analyze" method="POST" class="heavy-op">
+                    <select name="branch" class="input-custom" style="width: 100%; margin-bottom: 20px; padding: 12px; border-radius: 10px;">
+                        {% if branches and branches is iterable and branches is not mapping %}
+                            {% for b in branches %}<option value="{{ b.name if b.name else b }}">{{ b.name if b.name else b }}</option>{% endfor %}
+                        {% else %}<option value="main">main</option>{% endif %}
+                    </select>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; height: 48px; border-radius: 14px;">
+                        <i class="fas fa-microscope"></i> Initialize Scan
+                    </button>
+                </form>
+                {% else %}
+                <p style="font-size: 0.75rem; color: #92400e;"><i class="fas fa-exclamation-triangle"></i> Mapping required.</p>
+                {% endif %}
+            </div>
+
+            <div class="section-title" style="padding-left: 12px; margin-bottom: 16px;"><i class="fas fa-stream text-accent"></i> Stream</div>
+            <div class="history-stream">
+                {% for a in analyses %}
+                <a href="/fds/analysis/{{ a.id }}" class="history-item">
+                    <div class="history-info"><div class="branch"><i class="fas fa-code-branch"></i> {{ a.branch }}</div><div class="date"><i class="fas fa-clock"></i> {{ a.created_at.strftime('%b %d') }}</div></div>
+                    <span class="stat-pill {{ 'stat-pill-success' if a.status == 'complete' else 'stat-pill-primary' }}">{{ a.status }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </aside>
+    </div>
+
+    <!-- NEURAL CONSOLE (REWORKED RAW BUFFER) -->
+    <section class="neural-console-section">
+        <button id="console-reveal-btn" class="console-reveal-btn" onclick="toggleNeuralConsole()">
+            <i class="fas fa-terminal"></i> Reveal Raw Context Buffer
+        </button>
+
+        <div id="neural-console" class="neural-console-window">
+            <div class="console-chrome">
+                <div class="console-title">
+                    <div class="blink"></div>
+                    Neural_Source_Buffer_Stream // context_stream.raw
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-outline" style="font-size: 0.65rem; height: 32px; background: #111; color: #888; border-color: #222;" onclick="copyConsoleBuffer()">
+                        <i class="fas fa-copy"></i> Copy Buffer
+                    </button>
+                </div>
+            </div>
+            
+            <div class="console-layout">
+                <div class="console-meta-rail">
+                    <div class="meta-stat">
+                        <div class="label">Buffer Size</div>
+                        <div class="value">{{ doc.content|length }} Bytes</div>
+                    </div>
+                    <div class="meta-stat">
+                        <div class="label">Vector Density</div>
+                        <div class="value">{{ reqs|length }} Anchors</div>
+                    </div>
+                    <div class="meta-stat">
+                        <div class="label">Ingest Date</div>
+                        <div class="value">{{ doc.created_at.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    <div class="meta-stat">
+                        <div class="label">System Identity</div>
+                        <div class="value">AID::{{ doc.id }}</div>
+                    </div>
+                </div>
+                
+                <div class="console-main-view">
+                    <div class="code-editor-container">
+                        <div id="line-numbers" class="line-numbers"></div>
+                        <div class="code-content">{{ doc.content }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- INJECTION MODAL -->
+<div id="addReqModal" class="modal-overlay">
+    <div class="modal-card-neural">
+        <div class="neural-modal-header">
+            <div class="neural-icon-orb"><i class="fas fa-microchip"></i></div>
+        </div>
+        <div class="neural-modal-body">
+            <h3 class="modal-title">Inject Vector</h3>
+            <p class="modal-text">Input requirements in raw text. Our engine will normalize and anchor the vector.</p>
+            <form action="/fds/{{ doc.id }}/requirement/new" method="POST" class="heavy-op">
+                <div class="neural-input-wrapper">
+                    <textarea name="requirement_text" class="neural-textarea" placeholder="Describe logic constraint..." required></textarea>
+                </div>
+                <div class="neural-actions">
+                    <button type="button" class="btn-neural-cancel" onclick="closeAddReqModal()"><i class="fas fa-times"></i> Abort</button>
+                    <button type="submit" class="btn-neural-confirm"><i class="fas fa-magic"></i> Initialize Ingestion</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="modal-overlay">
+    <div class="modal-card-neural" style="max-width: 450px;">
+        <div class="neural-modal-body">
+            <div class="modal-icon-danger" style="width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 24px;"><i class="fas fa-exclamation-triangle"></i></div>
+            <h3 class="modal-title">Confirm Purge</h3>
+            <p class="modal-text">This action is irreversible. Proceed?</p>
+            <div id="delete-confirm-step" class="neural-actions" style="grid-template-columns: 1fr 1fr;">
+                <button class="btn btn-outline" style="height: 56px; border-radius: 16px;" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
+                <button class="btn btn-primary" id="confirm-delete-btn" style="height: 56px; border-radius: 16px; background: var(--accent-error); border: none;"><i class="fas fa-check"></i> Confirm</button>
+            </div>
+            <div id="delete-progress-step" class="progress-step">
+                <h3 class="modal-title">Wiping...</h3>
+                <div class="loader-progress-container" style="height: 4px; width: 100%;"><div class="loader-progress-bar" id="delete-progress-bar"></div></div>
+            </div>
+            <div id="delete-success-step" class="progress-step">
+                <div class="modal-icon" style="color: var(--accent-success);"><i class="fas fa-check-circle"></i></div>
+                <h3 class="modal-title">Purged</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Data Orchestration ---
+    const allRequirements = [
+        {% for req in reqs %}
+        { 
+            id: {{ req.id }}, 
+            req_id: "{{ req.req_id }}", 
+            req_type: "{{ req.req_type }}", 
+            section_id: {{ req.section_id or 'null' }},
+            source_page: "{{ req.source_page or '' }}",
+            description: `{{ req.description|replace('"', '\\"')|replace('\n', ' ')|replace('\r', '') }}` 
+        },
+        {% endfor %}
+    ];
+
+    let filteredReqs = [...allRequirements];
+    let selectedSectionId = null;
+    let currentPage = 1;
+    const pageSize = 10;
+
+    function filterBySection(sectionId) {
+        selectedSectionId = sectionId;
+        filterRequirements();
+    }
+
+    function filterRequirements() {
+        const query = document.getElementById('req-search').value.toLowerCase();
+        filteredReqs = allRequirements.filter(r => {
+            const matchesQuery = r.req_id.toLowerCase().includes(query) || r.description.toLowerCase().includes(query) || r.req_type.toLowerCase().includes(query);
+            const matchesSection = selectedSectionId === null || r.section_id === selectedSectionId;
+            return matchesQuery && matchesSection;
+        });
+        currentPage = 1;
+        renderFeed();
+    }
+
+    function renderFeed() {
+        const feed = document.getElementById('req-feed');
+        const pager = document.getElementById('req-pager');
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        const pageItems = filteredReqs.slice(start, end);
+
+        if (filteredReqs.length === 0) {
+            feed.innerHTML = `<div style="text-align:center; padding: 80px 32px; color: var(--text-dim); background: var(--bg-sidebar); border-radius: 20px; border: 2px dashed var(--border);"><p><i class="fas fa-search"></i> No vectors match filter</p></div>`;
+            pager.innerHTML = '';
+            return;
+        }
+
+        feed.innerHTML = pageItems.map(req => `
+            <div class="req-card" id="req-card-${req.id}">
+                <div class="req-header">
+                    <span class="req-id"><i class="fas fa-fingerprint"></i> ${req.req_id}</span>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        ${req.source_page ? `<span class="req-type-badge" style="background: var(--accent-glow); color: var(--accent-primary);"><i class="fas fa-file"></i> ${req.source_page}</span>` : ''}
+                        <span class="req-type-badge">${req.req_type}</span>
+                        <button type="button" onclick="confirmDeleteRequirement(${req.id}, '${req.req_id}')" style="background: none; border: none; color: var(--text-dim); cursor: pointer;"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+                <div class="req-body">${req.description}</div>
+            </div>
+        `).join('');
+
+        const totalPages = Math.ceil(filteredReqs.length / pageSize);
+        if (totalPages <= 1) { pager.innerHTML = ''; return; }
+        pager.innerHTML = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})"><i class="fas fa-chevron-left"></i> Prev</button><div style="font-family: var(--font-mono); font-weight: 800; display: flex; align-items: center; gap: 8px;"><i class="fas fa-file-alt"></i> ${currentPage} / ${totalPages}</div><button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">Next <i class="fas fa-chevron-right"></i></button>`;
+    }
+
+    function changePage(p) { currentPage = p; renderFeed(); document.getElementById('req-feed').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+    // --- Neural Console Logic ---
+    function toggleNeuralConsole() {
+        const console = document.getElementById('neural-console');
+        const btn = document.getElementById('console-reveal-btn');
+        const isHidden = console.style.display === 'none' || console.style.display === '';
+        
+        console.style.display = isHidden ? 'block' : 'none';
+        btn.classList.toggle('active', isHidden);
+        btn.innerHTML = isHidden ? '<i class="fas fa-eye-slash"></i> Terminate Buffer View' : '<i class="fas fa-terminal"></i> Reveal Raw Context Buffer';
+        
+        if (isHidden) {
+            generateLineNumbers();
+            console.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function generateLineNumbers() {
+        const content = document.querySelector('.code-content').innerText;
+        const lines = content.split('\n').length;
+        const gutter = document.getElementById('line-numbers');
+        gutter.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('<br>');
+    }
+
+    function copyConsoleBuffer() {
+        const content = document.querySelector('.code-content').innerText;
+        navigator.clipboard.writeText(content).then(() => alert("Buffer Copied to Clipboard"));
+    }
+
+    function openAddReqModal() { document.getElementById('addReqModal').classList.add('active'); }
+    function closeAddReqModal() { document.getElementById('addReqModal').classList.remove('active'); }
+
+    function openDeleteModal(title, text, action) {
+        document.getElementById('delete-confirm-step').style.display = 'grid';
+        document.getElementById('delete-progress-step').classList.remove('active');
+        document.getElementById('delete-success-step').classList.remove('active');
+        document.getElementById('deleteModal').classList.add('active');
+        document.getElementById('confirm-delete-btn').onclick = action;
+    }
+    function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('active'); }
+
+    function confirmDeleteRequirement(reqId, label) { openDeleteModal('Purge Vector', `Confirm removal of ${label}`, () => performDelete(`/fds/requirement/${reqId}/delete`, `req-card-${reqId}`, 'Vector Purged')); }
+    function confirmDeleteFds() { openDeleteModal('Wipe Spec', 'Confirm complete spec purge', () => performDelete(`/fds/{{ doc.id }}/delete`, null, 'Wiped', '/fds')); }
+
+    async function performDelete(url, elementId, msg, redirect = null) {
+        document.getElementById('delete-confirm-step').style.display = 'none';
+        document.getElementById('delete-progress-step').classList.add('active');
+        const bar = document.getElementById('delete-progress-bar');
+        let p = 0; const itv = setInterval(() => { p += (100-p)/12; bar.style.width = p+'%'; }, 80);
+        try {
+            const res = await fetch(url, { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} });
+            clearInterval(itv);
+            if (res.ok) {
+                bar.style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('delete-progress-step').classList.remove('active');
+                    document.getElementById('delete-success-step').classList.add('active');
+                    if (elementId && elementId.startsWith('req-card-')) {
+                        const id = parseInt(elementId.replace('req-card-', ''));
+                        const idx = allRequirements.findIndex(r => r.id === id);
+                        if (idx !== -1) allRequirements.splice(idx, 1);
+                        filterRequirements();
+                    }
+                    setTimeout(() => { closeDeleteModal(); if (redirect) window.location.href = redirect; }, 1000);
+                }, 400);
+            }
+        } catch(e) { closeDeleteModal(); }
+    }
+
+    window.onclick = (e) => { if (e.target.classList.contains('modal-overlay')) { closeAddReqModal(); closeDeleteModal(); } }
+    document.addEventListener('DOMContentLoaded', renderFeed);
+</script>
+{% endblock %}

@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    /* --- 2026 APPLE AI: DYNAMIC ORCHESTRATION HUD --- */
+    .spatial-progress-wrapper {
+        width: 100%;
+        margin: 0 auto;
+        animation: appleFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+        #main-title h1 {
+            font-size: 1.2rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.5px !important;
+            margin-bottom: 8px !important;
+            background: linear-gradient(180deg, #fff, #86868b);
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            display: inline-block !important;
+        }
+    /* --- NODE CONTEXT STRIP --- */
+    .node-context-strip { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; padding: 0 12px; }
+    .node-identity { display: flex; align-items: center; gap: 16px; }
+    .node-icon-26 { width: 48px; height: 48px; border-radius: 14px; background: #0f172a; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+    .node-metadata-pills { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+    .pill-26 { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 30px; background: #ffffff; border: 1px solid var(--border); font-size: 0.75rem; font-weight: 700; color: #64748b; box-shadow: var(--shadow-sm); }
+    .pill-26 i { font-size: 0.7rem; color: var(--accent-primary); }
+
+    /* --- INTERACTIVE GRID --- */
+    .progress-grid {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 24px;
+        align-items: stretch;
+    }
+
+    /* --- TASK ORCHESTRATOR SIDEBAR (GLASSMORPHIC) --- */
+    .task-sidebar {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        border-radius: 2rem;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        box-shadow: var(--gemini-shadow);
+        height: 600px; /* Matched with terminal */
+        overflow-y: auto;
+    }
+
+    .task-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--text-muted);
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .task-item i { 
+        font-size: 1rem; 
+        width: 24px; 
+        text-align: center;
+        color: var(--text-muted);
+    }
+
+    /* Task States */
+    .task-item.pending { opacity: 0.4; }
+    
+    .task-item.active {
+        background: rgba(155, 114, 203, 0.1);
+        color: var(--accent-primary);
+        border-color: rgba(155, 114, 203, 0.3);
+        box-shadow: 0 0 15px rgba(155, 114, 203, 0.1);
+    }
+    
+    .task-item.active i { color: var(--accent-primary); }
+    
+    .task-item.complete { 
+        color: var(--accent-success); 
+        background: rgba(16, 185, 129, 0.05);
+        border-color: rgba(16, 185, 129, 0.2);
+    }
+    
+    .task-item.complete i { color: var(--accent-success); }
+
+    /* --- VOLUMETRIC TERMINAL --- */
+    .terminal-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .terminal-window {
+        background: #000000;
+        border-radius: 2rem;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: var(--gemini-shadow);
+        display: flex;
+        flex-direction: column;
+        height: 600px; /* Matched with sidebar */
+    }
+
+    .terminal-header {
+        background: #1c1c1e;
+        padding: 14px 24px;
+        display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .mac-dots { display: flex; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+
+    #log-container {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        color: #a1a1aa;
+    }
+
+    .log-row {
+        margin-bottom: 8px;
+        display: flex;
+        gap: 16px;
+        animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+    .log-ts { color: #52525b; font-size: 0.75rem; min-width: 75px; }
+    .log-tag { color: var(--accent-secondary); font-weight: 700; text-transform: uppercase; min-width: 110px; }
+    .log-text { color: #e4e4e7; }
+
+    #cursor {
+        display: inline-block; width: 8px; height: 15px;
+        background: var(--accent-secondary); animation: blink 1s step-end infinite;
+        vertical-align: middle; margin-left: 8px;
+        box-shadow: 0 0 10px var(--accent-secondary);
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    /* Bottom Status Bar inside terminal */
+    .terminal-footer {
+        background: #1c1c1e;
+        padding: 8px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.65rem;
+        font-family: 'JetBrains Mono';
+        color: #52525b;
+    }
+
+    #complete-action { text-align: center; margin-top: 24px; display: none; }
+    .btn-reveal { padding: 16px 48px; border-radius: 100px; background: #fff; color: #000; font-size: 1rem; font-weight: 800; text-decoration: none; box-shadow: 0 10px 30px rgba(255,255,255,0.2); transition: all 0.3s ease; }
+    .btn-reveal:hover { transform: scale(1.05); box-shadow: 0 15px 40px rgba(255,255,255,0.3); }
+
+    @media (max-width: 1024px) { .progress-grid { grid-template-columns: 1fr; } .task-sidebar { display: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="spatial-progress-wrapper">
+    
+    <!-- Node Strip -->
+    <div class="node-context-strip">
+        <div class="node-identity">
+            <div class="node-icon-26"><i class="fas fa-cube"></i></div>
+            <div>
+                <h1 id="main-title">Neural Audit Progress</h1>
+                <div class="node-metadata-pills">
+                    <div class="pill-26"><i class="fas fa-link"></i> {{ repo.name }} / {{ review.branch }}</div>
+                    <div class="pill-26"><i class="fas fa-bolt"></i> ID: #{{ review.id }}</div>
+                    <div class="pill-26" id="timer-pill"><i class="far fa-clock"></i> 00:00</div>
+                </div>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div id="ai-thinking-label" style="font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Neural Link</div>
+            <div id="status-container" style="display: flex; align-items: center; gap: 8px; color: #10b981; font-weight: 800; font-size: 0.9rem;">
+                <div class="pulse-dot"></div> <span id="status-pill-text">ACTIVE STREAM</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-grid">
+        <!-- Sidebar: Task Orchestrator -->
+        <aside class="task-sidebar">
+            <div style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 16px; padding-left: 12px;">Task Lifecycle</div>
+            
+            <div id="task-pending" class="task-item">
+                <i class="fas fa-hourglass-start"></i> INITIALIZING
+            </div>
+            <div id="task-cloning" class="task-item">
+                <i class="fas fa-cloud-download-alt"></i> CLONING SOURCE
+            </div>
+            <div id="task-scanning" class="task-item">
+                <i class="fas fa-microscope"></i> SONAR ANALYSIS
+            </div>
+            <div id="task-waiting_sonar" class="task-item">
+                <i class="fas fa-server"></i> WAITING FOR SONAR
+            </div>
+            <div id="task-fetching_results" class="task-item">
+                <i class="fas fa-file-import"></i> FETCHING RESULTS
+            </div>
+            <div id="task-analyzing" class="task-item">
+                <i class="fas fa-brain"></i> PARALLEL NEURAL AUDIT
+            </div>
+            <div id="task-generating_report" class="task-item">
+                <i class="fas fa-file-invoice"></i> FINALIZING REPORT
+            </div>
+            <div id="task-complete" class="task-item">
+                <i class="fas fa-check-circle"></i> COMPLETE
+            </div>
+        </aside>
+
+        <!-- Main Terminal -->
+        <div class="terminal-wrapper">
+            <div class="terminal-window">
+                <div class="terminal-header">
+                    <div class="mac-dots">
+                        <div class="dot dot-r"></div>
+                        <div class="dot dot-y"></div>
+                        <div class="dot dot-g"></div>
+                    </div>
+                    <div style="font-family: 'JetBrains Mono'; font-size: 0.65rem; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase;">Engine_Core_Stream_v2.0.4</div>
+                    <i class="fas fa-terminal" style="color: rgba(255,255,255,0.1); font-size: 0.8rem;"></i>
+                </div>
+                
+                <div id="log-container">
+                    {% for log in logs|reverse %}
+                        <div class="log-row">
+                            <span class="log-ts">[{{ log.created_at.strftime('%H:%M:%S') }}]</span> 
+                            <b class="log-tag" style="color: {% if 'FAILED' in log.status.upper() %}#ef4444{% elif 'COMPLETED' in log.status.upper() %}#10b981{% else %}var(--accent-secondary){% endif %};">{{ log.step }}</b> 
+                            <span class="log-text">{{ log.message }}</span>
+                        </div>
+                    {% endfor %}
+                    <div id="cursor"></div>
+                </div>
+
+                <!-- Simulation progress bar hidden by default, shown during AI phase -->
+                <div id="ai-progress-container" style="height: 3px; background: rgba(255,255,255,0.05); width: 100%; display: none;">
+                    <div id="ai-progress-fill" style="height: 100%; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); width: 0%; transition: width 0.5s ease; box-shadow: 0 0 15px var(--accent-secondary);"></div>
+                </div>
+
+                <div class="terminal-footer">
+                    <span>REMOTE_NODE: {{ repo.github_id }}</span>
+                    <span>ENCODING: UTF-8</span>
+                    <span id="status-display">STATUS: ACTIVE</span>
+                </div>
+            </div>
+
+            <div id="complete-action">
+                <a id="report-link" href="#" class="btn-reveal">
+                    <i class="fas fa-lock-open"></i> ACCESS_NEURAL_FINDINGS
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const reviewId = {{ review.id }};
+    const logContainer = document.getElementById('log-container');
+    const timerPill = document.getElementById('timer-pill');
+    const completeAction = document.getElementById('complete-action');
+    const reportLink = document.getElementById('report-link');
+    const cursor = document.getElementById('cursor');
+    const statusDisplay = document.getElementById('status-display');
+    const mainTitle = document.getElementById('main-title');
+    const aiProgressContainer = document.getElementById('ai-progress-container');
+    const aiProgressFill = document.getElementById('ai-progress-fill');
+    const aiThinkingLabel = document.getElementById('ai-thinking-label');
+    const statusPillText = document.getElementById('status-pill-text');
+    
+    const steps = ['pending', 'cloning', 'scanning', 'waiting_sonar', 'fetching_results', 'analyzing', 'generating_report', 'complete'];
+    
+    const aiThinkMessages = [
+        "Analyzing architectural boundaries...",
+        "Identifying concurrent race conditions...",
+        "Evaluating error propagation paths...",
+        "Validating domain invariant logic...",
+        "Scanning for PII leakage vectors...",
+        "Finalizing neural audit report..."
+    ];
+    let aiMsgIndex = 0;
+    let aiSimulateInterval = null;
+
+    let totalElapsed = {{ elapsed_seconds or 0 }};
+    let isTerminated = {% if review.status in ['complete', 'failed'] %}true{% else %}false{% endif %};
+    
+    function formatTime(totalSeconds) {
+        const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+        const secs = String(totalSeconds % 60).padStart(2, '0');
+        return `${mins}:${secs}`;
+    }
+
+    timerPill.innerHTML = `<i class="far fa-clock"></i> ${formatTime(totalElapsed)}`;
+
+    const timerInterval = setInterval(() => {
+        if (isTerminated) return;
+        totalElapsed++;
+        timerPill.innerHTML = `<i class="far fa-clock"></i> ${formatTime(totalElapsed)}`;
+    }, 1000);
+
+    const existingLogIds = new Set();
+    // Initialize existing logs from server-side render
+    {% for log in logs %}
+        existingLogIds.add({{ log.id }});
+    {% endfor %}
+
+    function updateProgress() {
+        fetch(window.location.href, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Update elapsed time from server if available
+            if (data.elapsed_seconds) {
+                totalElapsed = data.elapsed_seconds;
+            }
+
+            // Update Task Sidebar States
+            steps.forEach(step => {
+                const el = document.getElementById(`task-${step}`);
+                if (!el) return;
+                const currentIndex = steps.indexOf(data.status);
+                const stepIndex = steps.indexOf(step);
+                el.classList.remove('active', 'complete', 'pending');
+                
+                const icon = el.querySelector('i');
+                if (step === data.status) {
+                    el.classList.add('active');
+                    if (data.status !== 'complete' && !icon.classList.contains('fa-spin')) {
+                        icon.className = 'fas fa-circle-notch fa-spin';
+                    } else if (data.status === 'complete') {
+                        el.classList.remove('active');
+                        el.classList.add('complete');
+                        icon.className = 'fas fa-check-circle';
+                    }
+                } else if (stepIndex < currentIndex || data.status === 'complete') {
+                    el.classList.add('complete');
+                    icon.className = 'fas fa-check-circle';
+                } else { 
+                    el.classList.add('pending'); 
+                    // Restore original icon for pending
+                    const originalIcons = {
+                        'pending': 'fa-hourglass-start',
+                        'cloning': 'fa-cloud-download-alt',
+                        'scanning': 'fa-microscope',
+                        'waiting_sonar': 'fa-server',
+                        'fetching_results': 'fa-file-import',
+                        'analyzing': 'fa-brain',
+                        'generating_report': 'fa-file-invoice',
+                        'complete': 'fa-check-circle'
+                    };
+                    icon.className = `fas ${originalIcons[step]}`;
+                }
+            });
+
+            // AI Thinking Simulation
+            if (data.status === 'analyzing' && !aiSimulateInterval) {
+                aiProgressContainer.style.display = 'block';
+                let currentSimProgress = 5;
+                aiSimulateInterval = setInterval(() => {
+                    if (isTerminated) { clearInterval(aiSimulateInterval); return; }
+                    if (currentSimProgress < 98) {
+                        currentSimProgress += (100 - currentSimProgress) / 60;
+                        aiProgressFill.style.width = currentSimProgress + '%';
+                    }
+                    mainTitle.innerText = aiThinkMessages[aiMsgIndex];
+                    aiThinkingLabel.innerText = "Neural Engine Thinking";
+                    statusPillText.innerText = "INFERENCE IN PROGRESS";
+                    aiMsgIndex = (aiMsgIndex + 1) % aiThinkMessages.length;
+                }, 4000);
+            }
+
+            // Smooth Incremental Log Updates
+            const newLogs = data.logs.reverse(); // Now logs from oldest to newest
+            newLogs.forEach(log => {
+                if (!existingLogIds.has(log.id)) {
+                    existingLogIds.add(log.id);
+                    const date = new Date(log.created_at);
+                    const timeStr = date.toTimeString().split(' ')[0];
+                    const logEl = document.createElement('div');
+                    logEl.className = 'log-row';
+                    
+                    let tagColor = 'var(--accent-secondary)';
+                    if (log.status.toUpperCase().includes('FAILED')) tagColor = '#ef4444';
+                    if (log.status.toUpperCase().includes('COMPLETED')) tagColor = '#10b981';
+
+                    logEl.innerHTML = `<span class="log-ts">[${timeStr}]</span> <b class="log-tag" style="color: ${tagColor}">${log.step.toUpperCase()}</b> <span class="log-text">${log.message}</span>`;
+                    logContainer.insertBefore(logEl, cursor);
+                    logContainer.scrollTo({ top: logContainer.scrollHeight, behavior: 'smooth' });
+                }
+            });
+            
+            if (data.is_complete) {
+                isTerminated = true;
+                clearInterval(timerInterval);
+                if (aiSimulateInterval) clearInterval(aiSimulateInterval);
+                statusDisplay.innerText = 'STATUS: TERMINATED';
+                mainTitle.innerText = "Audit Complete";
+                aiProgressContainer.style.display = 'none';
+                statusPillText.innerText = data.status === 'complete' ? "SUCCESS" : "FAILED";
+                if (data.status === 'complete') {
+                    completeAction.style.display = 'block';
+                    reportLink.href = `/review/${reviewId}/report`;
+                }
+                cursor.style.display = 'none';
+            } else {
+                setTimeout(updateProgress, 1500);
+            }
+        });
+    }
+    
+    updateProgress();
+</script>
+{% endblock %}

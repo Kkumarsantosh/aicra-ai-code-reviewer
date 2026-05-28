@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding: 40px 0;">
+    <div style="margin-bottom: 40px;">
+        <h1 style="margin: 0; letter-spacing: -1.5px;">Quality Trends</h1>
+        <p style="color: var(--text-muted); font-weight: 600; margin-top: 4px;">Bugs per Feature Shipped (4-Week Trend)</p>
+    </div>
+
+    {% if trends %}
+    <div class="card" style="padding: 32px;">
+        <h3 style="margin-top: 0; font-weight: 800; margin-bottom: 32px;">Bugs / Feature Ratio</h3>
+        
+        {% for week in trends %}
+        <div style="margin-bottom: 32px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-weight: 700; font-size: 0.9rem;">{{ week.label }} ({{ week.period }})</span>
+                    {% if week.spike_detected %}
+                    <span class="stat-pill stat-pill-error" style="font-size: 0.65rem;">{{ week.spike_message }}</span>
+                    {% endif %}
+                </div>
+                <span style="font-weight: 800; color: {% if week.ratio > 1.0 %}#ef4444{% else %}#10b981{% endif %};">{{ week.ratio }} bugs/feature</span>
+            </div>
+            <div style="display: flex; gap: 4px; height: 24px;">
+                {% set filled_bars = (week.ratio * 5)|round|int %}
+                {% if filled_bars > 10 %} {% set filled_bars = 10 %} {% endif %}
+                
+                {% for _ in range(filled_bars) %}
+                <div style="flex: 1; background: #ef4444; border-radius: 4px;"></div>
+                {% endfor %}
+                {% for _ in range(10 - filled_bars) %}
+                <div style="flex: 1; background: var(--bg-sidebar); border-radius: 4px;"></div>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 8px; font-size: 0.75rem; color: var(--text-muted);">
+                {{ week.features }} Features, {{ week.bugs }} Bugs
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="card" style="margin-top: 32px; padding: 24px; border-style: dashed; background: transparent;">
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+            <strong>Flashlight Insight:</strong> The Bug/Feature ratio is a team health indicator. 
+            Spikes often correlate with rushed releases or complex refactors. 
+            Investigate spikes manually to understand root causes (e.g., "rushed release for client demo").
+        </p>
+    </div>
+    {% else %}
+    <div class="card" style="text-align: center; padding: 80px;">
+        <i class="fas fa-chart-line" style="font-size: 3rem; color: var(--text-dim); margin-bottom: 24px; opacity: 0.3;"></i>
+        <h2>No Trend Data Available</h2>
+        <p class="text-muted">Unable to calculate trends for project {{ project_key }}.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

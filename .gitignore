@@ -1,0 +1,30 @@
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database & Environment Secrets
+aicra.db
+config/.env
+.env
+
+# Project Specific
+workspace/
+reports/gemini_raw_*
+reports/gemini_review_*
+reports/review_*
+reports/sonar_filtered_*
+reports/sonar_report.json
+sonar_report.json
+# Large Binaries
+sonar-scanner-*/

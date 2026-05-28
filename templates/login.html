@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AICRA | Secure Access</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- AICRA Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background: white; font-family: 'Roboto', sans-serif; }
+
+        .auth-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* --- DYNAMIC DIAGONAL PANEL --- */
+        .auth-promo-panel {
+            position: absolute;
+            inset: 0;
+            width: 60%;
+            background: #0c0f14;
+            clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            overflow: hidden;
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Abstract Intelligence Background */
+        .neural-bg {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(150, 137, 232, 0.2), transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(13, 148, 136, 0.15), transparent 50%);
+            opacity: 0.6;
+            z-index: 1;
+        }
+
+        .sparkle-bg-container {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            mask-image: radial-gradient(circle at center, black, transparent 90%);
+            WebkitMaskImage: radial-gradient(circle at center, black, transparent 90%);
+        }
+
+        .scanning-line {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(150, 137, 232, 0.05), transparent);
+            animation: scan 8s linear infinite;
+            z-index: 3;
+        }
+
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .promo-content {
+            position: relative;
+            z-index: 20;
+            width: 100%;
+            max-width: 850px;
+            color: #ffffff !important;
+            animation: slideIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .promo-full-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .promo-title {
+            font-size: 4.8rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 24px;
+            letter-spacing: -0.04em;
+            color: #ffffff !important;
+            white-space: nowrap;
+        }
+
+        /* --- AURORA TEXT EFFECT --- */
+        .aurora-text {
+            display: inline-block;
+            margin-left: 0.15em;
+            --color-1: #9689e8;
+            --color-2: #7e71d4;
+            --color-3: #4fd1c5;
+            --color-4: #f687b3;
+            background: linear-gradient(
+                to right,
+                var(--color-1),
+                var(--color-2),
+                var(--color-3),
+                var(--color-4),
+                var(--color-1)
+            );
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: aurora-animation 8s linear infinite;
+        }
+
+        @keyframes aurora-animation {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .promo-subtitle {
+            font-size: 1.25rem; 
+            opacity: 0.8; 
+            line-height: 1.6;
+            color: #ffffff !important;
+            max-width: 600px;
+        }
+
+        /* --- LOGIN PANEL --- */
+        .auth-form-panel {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-right: 8%;
+            background: white;
+            z-index: 5;
+        }
+
+        #login-root {
+            width: 100%;
+            max-width: 500px;
+            z-index: 30;
+        }
+
+        .login-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 48px;
+            border-radius: 28px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+        }
+
+        /* --- BORDER BEAM EFFECT --- */
+        .border-beam {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            border: 2px solid transparent;
+            border-radius: inherit;
+            mask-clip: padding-box, border-box;
+            mask-composite: intersect;
+            mask-image: linear-gradient(transparent, transparent), linear-gradient(white, white);
+            z-index: 1;
+        }
+
+        .border-beam::after {
+            content: "";
+            position: absolute;
+            aspect-ratio: 1;
+            width: 150px;
+            background: linear-gradient(to left, var(--accent-primary), transparent);
+            offset-path: rect(0 100% 100% 0 round 24px);
+            animation: border-beam 8s linear infinite;
+        }
+
+        @keyframes border-beam {
+            100% {
+                offset-distance: 100%;
+            }
+        }
+
+        .login-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 70px rgba(150, 137, 232, 0.1);
+        }
+
+        /* --- INTERACTIVE INPUTS --- */
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            background: #f8fafc;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 16px;
+            color: var(--text-dim);
+            transition: color 0.3s ease;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 16px 16px 16px 48px;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .input-wrapper:focus-within {
+            background: white;
+            border-color: var(--accent-primary);
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+
+        .input-wrapper:focus-within i {
+            color: var(--accent-primary);
+        }
+
+        /* --- STATS --- */
+        .stats-grid {
+            display: flex;
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .stat-item .val {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #ffffff;
+            font-family: var(--font-mono);
+        }
+
+        .stat-item .lbl {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1200px) {
+            .auth-promo-panel { width: 50%; clip-path: polygon(0 0, 100% 0, 90% 100%, 0% 100%); }
+        }
+
+        @media (max-width: 900px) {
+            .auth-promo-panel { display: none; }
+            .auth-form-panel { justify-content: center; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <!-- Promo Panel -->
+        <div class="auth-promo-panel">
+            <div class="neural-bg"></div>
+            <div id="sparkle-root" class="sparkle-bg-container"></div>
+            <div class="scanning-line"></div>
+            <div id="promo-root" style="width: 100%; z-index: 20;"></div>
+        </div>
+
+        <!-- Form Panel -->
+        <div class="auth-form-panel">
+            <div id="login-root"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+    {% raw %}
+        const { useState, useEffect, useRef } = React;
+
+        const SparklesCore = ({
+            id,
+            className,
+            background = "transparent",
+            minSize = 0.6,
+            maxSize = 1.4,
+            speed = 4,
+            particleColor = "#FFFFFF",
+            particleDensity = 120,
+        }) => {
+            const canvasRef = useRef(null);
+            const [context, setContext] = useState(null);
+            const particles = useRef([]);
+
+            useEffect(() => {
+                if (canvasRef.current) {
+                    const ctx = canvasRef.current.getContext("2d");
+                    setContext(ctx);
+                }
+            }, []);
+
+            const createParticle = (width, height) => {
+                return {
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: Math.random() * (maxSize - minSize) + minSize,
+                    speedX: (Math.random() - 0.5) * (speed / 10),
+                    speedY: (Math.random() - 0.5) * (speed / 10),
+                    opacity: Math.random(),
+                };
+            };
+
+            const init = () => {
+                if (canvasRef.current && context) {
+                    const parent = canvasRef.current.parentElement;
+                    const width = parent.offsetWidth;
+                    const height = parent.offsetHeight;
+                    canvasRef.current.width = width;
+                    canvasRef.current.height = height;
+                    particles.current = [];
+                    for (let i = 0; i < particleDensity; i++) {
+                        particles.current.push(createParticle(width, height));
+                    }
+                }
+            };
+
+            useEffect(() => {
+                if (context) {
+                    init();
+                    let animationFrameId;
+                    const animate = () => {
+                        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                        particles.current.forEach((p) => {
+                            p.x += p.speedX;
+                            p.y += p.speedY;
+                            if (p.x < 0 || p.x > canvasRef.current.width) p.speedX *= -1;
+                            if (p.y < 0 || p.y > canvasRef.current.height) p.speedY *= -1;
+                            
+                            context.fillStyle = particleColor;
+                            context.globalAlpha = p.opacity;
+                            context.beginPath();
+                            context.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                            context.fill();
+                        });
+                        animationFrameId = requestAnimationFrame(animate);
+                    };
+                    animate();
+                    window.addEventListener("resize", init);
+                    return () => {
+                        cancelAnimationFrame(animationFrameId);
+                        window.removeEventListener("resize", init);
+                    };
+                }
+            }, [context]);
+
+            return (
+                <div className={className}>
+                    <canvas
+                        ref={canvasRef}
+                        id={id}
+                        style={{
+                            background,
+                            width: '100%',
+                            height: '100%',
+                            display: 'block'
+                        }}
+                    />
+                </div>
+            );
+        };
+
+        const PromoContent = () => {
+            return (
+                <div className="promo-content">
+                    <div className="promo-full-name">
+                        Artificial Intelligence in Code Review and Automation
+                    </div>
+                    <h1 className="promo-title">
+                        Precision<span className="aurora-text">Intelligence.</span>
+                    </h1>
+                    <p className="promo-subtitle">
+                        The autonomous engine for high-fidelity code reviews and logic derivation.
+                    </p>
+
+                    <div className="w-full h-px relative mt-10">
+                        {/* Static Accent Lines */}
+                        <div className="absolute inset-x-20 top-0 bg-gradient-to-r from-transparent via-indigo-500 to-transparent h-[2px] w-3/4 blur-sm z-10" />
+                        <div className="absolute inset-x-20 top-0 bg-gradient-to-r from-transparent via-indigo-500 to-transparent h-px w-3/4 z-10" />
+                        <div className="absolute inset-x-60 top-0 bg-gradient-to-r from-transparent via-sky-500 to-transparent h-[5px] w-1/4 blur-sm z-10" />
+                        <div className="absolute inset-x-60 top-0 bg-gradient-to-r from-transparent via-sky-500 to-transparent h-px w-1/4 z-10" />
+                    </div>
+                    
+                    <div className="stats-grid">
+                        <div className="stat-item">
+                            <div className="val">98.4%</div>
+                            <div className="lbl">Precision</div>
+                        </div>
+                        <div className="stat-item">
+                            <div className="val">&lt; 120s</div>
+                            <div className="lbl">Latency</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const LoginScreen = () => {
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError('');
+
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ username, password })
+                    });
+
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        const data = await response.json();
+                        if (data.error) {
+                            setError(data.error);
+                        }
+                    }
+                } catch (err) {
+                    setError('Connection failed. Verify system status.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="login-card">
+                    <div className="border-beam"></div>
+                    <div style={{ position: 'relative', zIndex: 2 }}>
+                        <div style={{ marginBottom: '40px' }}>
+                            <div className="logo-container" style={{ marginBottom: '32px' }}>
+                                <div className="logo-icon" style={{ background: 'var(--accent-primary)', color: 'white' }}>
+                                    <i className="fas fa-microchip"></i>
+                                </div>
+                                <div className="logo-text">AICRA<span>.</span></div>
+                            </div>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0' }}>Security Gateway</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Authorized credentials required for access.</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="input-group">
+                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Network ID</label>
+                                <div className="input-wrapper">
+                                    <i className="fas fa-user-astronaut"></i>
+                                    <input 
+                                        type="text" 
+                                        className="auth-input" 
+                                        placeholder="Username" 
+                                        value={username} 
+                                        onChange={(e) => setUsername(e.target.value)} 
+                                        required 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="input-group">
+                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Access Key</label>
+                                <div className="input-wrapper">
+                                    <i className="fas fa-fingerprint"></i>
+                                    <input 
+                                        type="password" 
+                                        className="auth-input" 
+                                        placeholder="••••••••" 
+                                        value={password} 
+                                        onChange={(e) => setPassword(e.target.value)} 
+                                        required 
+                                    />
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div style={{ 
+                                    color: '#ef4444', 
+                                    fontSize: '0.8rem', 
+                                    fontWeight: '700', 
+                                    marginBottom: '24px', 
+                                    padding: '12px', 
+                                    background: '#fee2e2', 
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(239, 68, 68, 0.1)'
+                                }}>
+                                    <i className="fas fa-exclamation-triangle" style={{ marginRight: '8px' }}></i>
+                                    {error}
+                                </div>
+                            )}
+
+                            <div style={{ marginTop: '24px' }}>
+                                <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '0.9rem', borderRadius: '12px' }} disabled={loading}>
+                                    {loading ? <i className="fas fa-spinner fa-spin"></i> : <React.Fragment><i className="fas fa-shield-check"></i> Login</React.Fragment>}
+                                </button>
+                            </div>
+                        </form>
+
+                        <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 700, letterSpacing: '1px' }}>
+                                <i className="fas fa-lock"></i> AES-256 ENCRYPTED LINK
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('login-root'));
+        root.render(<LoginScreen />);
+
+        const promoRoot = ReactDOM.createRoot(document.getElementById('promo-root'));
+        promoRoot.render(<PromoContent />);
+
+        const sparkleRoot = ReactDOM.createRoot(document.getElementById('sparkle-root'));
+        sparkleRoot.render(
+            <SparklesCore
+                background="transparent"
+                minSize={0.4}
+                maxSize={1.2}
+                particleDensity={500}
+                className="w-full h-full"
+                particleColor="#FFFFFF"
+            />
+        );
+    {% endraw %}
+    </script>
+</body>
+</html>

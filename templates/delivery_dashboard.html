@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding: 40px 0;">
+    <div style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="margin: 0; letter-spacing: -1.5px;">Delivery Overview</h1>
+            <p style="color: var(--text-muted); font-weight: 600; margin-top: 4px;">
+                Project: {{ project_key }} (Last 14 Days) 
+                <span style="margin-left: 12px; font-weight: 400; opacity: 0.6;">
+                    <i class="fas fa-sync"></i> Last synced: {{ metrics.last_sync if metrics else 'N/A' }}
+                </span>
+            </p>
+        </div>
+        <div class="savings-pill" style="height: 40px; padding: 0 20px; font-size: 0.8rem; border-color: var(--gemini-blue); color: var(--gemini-blue);">
+            <i class="fas fa-chart-line"></i> REAL_DATA_DRIVEN
+        </div>
+    </div>
+
+    {% if metrics %}
+    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 40px;">
+        <div class="stat-card">
+            <div class="stat-card-icon" style="background: #e0e7ff; color: #4338ca;"><i class="fas fa-rocket"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Features Completed</div>
+                <div class="value">{{ metrics.features }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon" style="background: #fee2e2; color: #ef4444;"><i class="fas fa-bug"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Bugs Fixed</div>
+                <div class="value">{{ metrics.bugs }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon" style="background: #faf5ff; color: #7c3aed;"><i class="fas fa-tools"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Tech Debt Resolved</div>
+                <div class="value">{{ metrics.tech_debt }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon" style="background: #d1fae5; color: #059669;"><i class="fas fa-clock"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Avg Cycle Time</div>
+                <div class="value">{{ metrics.avg_cycle_time_days }}d</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 32px;">
+        <h3 style="margin-top: 0; font-weight: 800; margin-bottom: 24px;">Work Composition</h3>
+        <div style="display: flex; height: 40px; border-radius: 10px; overflow: hidden; margin-bottom: 32px;">
+            {% if metrics.total > 0 %}
+                {% set feat_pct = (metrics.composition.Feature / metrics.total * 100)|round %}
+                {% set bug_pct = (metrics.composition.Bug / metrics.total * 100)|round %}
+                {% set debt_pct = (metrics.composition.Debt / metrics.total * 100)|round %}
+                {% set res_pct = (metrics.composition.Research / metrics.total * 100)|round %}
+                {% set ops_pct = (metrics.composition.Operations / metrics.total * 100)|round %}
+                {% set support_pct = (metrics.composition.Support / metrics.total * 100)|round %}
+                {% set other_pct = (metrics.composition.Other / metrics.total * 100)|round %}
+                
+                <div style="width: {{ feat_pct }}%; background: #4338ca; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Features">F</div>
+                <div style="width: {{ bug_pct }}%; background: #ef4444; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Bugs">B</div>
+                <div style="width: {{ debt_pct }}%; background: #7c3aed; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Tech Debt">D</div>
+                <div style="width: {{ res_pct }}%; background: #10b981; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Research">R</div>
+                <div style="width: {{ ops_pct }}%; background: #f59e0b; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Operations">O</div>
+                <div style="width: {{ support_pct }}%; background: #ec4899; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Support">S</div>
+                <div style="width: {{ other_pct }}%; background: #94a3b8; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem; font-weight: 800;" title="Other">?</div>
+            {% else %}
+                <div style="width: 100%; background: var(--bg-sidebar); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 0.8rem;">No data for selected period</div>
+            {% endif %}
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #4338ca;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Features ({{ metrics.composition.Feature }})</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #ef4444;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Bugs ({{ metrics.composition.Bug }})</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #7c3aed;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Tech Debt ({{ metrics.composition.Debt }})</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #10b981;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Research ({{ metrics.composition.Research }})</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #f59e0b;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Operations ({{ metrics.composition.Operations }})</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #ec4899;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Support ({{ metrics.composition.Support }})</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 12px; height: 12px; border-radius: 3px; background: #94a3b8;"></div>
+                <div style="font-size: 0.8rem; font-weight: 600;">Other ({{ metrics.composition.Other }})</div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card" style="text-align: center; padding: 80px;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--text-dim); margin-bottom: 24px; opacity: 0.3;"></i>
+        <h2>No Jira Data Found</h2>
+        <p class="text-muted">Unable to fetch delivery metrics for project {{ project_key }}. Check your Jira configuration.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

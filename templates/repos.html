@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .repos-container {
+        width: 100%;
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* --- Node Feed Aesthetic --- */
+    .node-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+    }
+
+    .node-feed::before {
+        content: '';
+        position: absolute;
+        left: 28px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--border-light);
+        z-index: 0;
+    }
+
+    .node-item {
+        display: flex;
+        gap: 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .node-marker {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: white;
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: var(--accent-primary);
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .node-content {
+        flex: 1;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .node-content:hover {
+        border-color: var(--accent-primary);
+        transform: translateX(6px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .node-main .name {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 4px;
+    }
+
+    .node-main .path {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        background: var(--bg-sidebar);
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: inline-block;
+    }
+
+    .node-stats {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+    }
+
+    .stat-pill {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 6px;
+        text-transform: uppercase;
+    }
+
+    .status-active { background: #d1fae5; color: #059669; }
+    .status-idle { background: #f3f4f6; color: #6b7280; }
+
+    .node-meta {
+        text-align: right;
+    }
+
+    .node-meta .label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+
+    .node-meta .val {
+        font-weight: 700;
+        color: var(--text-main);
+        font-size: 0.875rem;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="repos-container">
+    <div class="page-header">
+        <div>
+            <nav class="breadcrumb" style="margin-bottom: 12px;">
+                <a href="/" class="breadcrumb-item">AICRA</a>
+                <a href="/repos" class="breadcrumb-item">Neural Scan</a>
+                <span class="breadcrumb-item active">Infrastructure Nodes</span>
+            </nav>
+            <h1 style="margin: 0;">Infrastructure Registry</h1>
+            <p class="text-muted">Inventory of registered code repositories and automated intelligence nodes.</p>
+        </div>
+        <button id="sync-btn" class="btn btn-primary" style="padding: 12px 24px; border-radius: 12px;">
+            <i class="fas fa-satellite-dish"></i> SYNC REGISTRY
+        </button>
+    </div>
+
+    <!-- Filter HUD -->
+    <div style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; padding: 0 8px;">
+        <div style="display: flex; gap: 8px;">
+            <a href="/repos" class="btn {{ 'btn-primary' if not show_all else 'btn-outline' }}" style="font-size: 0.75rem; border-radius: 10px;">
+                <i class="fas fa-filter"></i> CONFIGURED ONLY
+            </a>
+            <a href="/repos?all=1" class="btn {{ 'btn-primary' if show_all else 'btn-outline' }}" style="font-size: 0.75rem; border-radius: 10px;">
+                <i class="fas fa-network-wired"></i> ALL DISCOVERED
+            </a>
+        </div>
+        <div class="text-dim" style="font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;">
+            INVENTORY_COUNT: {{ repos|length }}
+        </div>
+    </div>
+
+    <!-- Node Feed -->
+    <div class="node-feed">
+        {% for repo in repos %}
+        <div class="node-item">
+            <div class="node-marker">
+                <i class="fas {% if 'go' in (repo.language or '').lower() %}fa-code{% elif 'python' in (repo.language or '').lower() %}fa-brands fa-python{% else %}fa-server{% endif %}"></i>
+            </div>
+            <div class="node-content">
+                <div class="node-main">
+                    <div class="name">{{ repo.name }}</div>
+                    <div class="path">{{ repo.path }}</div>
+                </div>
+
+                <div class="node-stats">
+                    <div class="node-meta">
+                        <div class="label">Default Branch</div>
+                        <div class="val">{{ repo.default_branch or 'main' }}</div>
+                    </div>
+                    
+                    <div class="node-meta">
+                        <div class="label">Intelligence</div>
+                        <div class="val" style="color: {{ 'var(--accent-success)' if repo.sonar_project_key else 'var(--text-dim)' }}">
+                            {{ 'SONAR_UP' if repo.sonar_project_key else 'SONAR_OFF' }}
+                        </div>
+                    </div>
+
+                    <div style="min-width: 100px; text-align: center;">
+                        <span class="status-pill {{ 'status-active' if repo.is_configured else 'status-idle' }}">
+                            {{ 'Active' if repo.is_configured else 'Idle' }}
+                        </span>
+                    </div>
+
+                    <a href="/repo/{{ repo.id }}" class="btn btn-outline btn-icon" style="width: 44px; height: 44px; border-radius: 12px;">
+                        <i class="fas fa-sliders"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card" style="text-align: center; padding: 80px; border-style: dashed; margin-left: 80px;">
+            <i class="fas fa-inbox" style="font-size: 2.5rem; color: var(--text-dim); margin-bottom: 20px; opacity: 0.5;"></i>
+            <h3 class="text-dim">No Repository Nodes Found</h3>
+            <p class="text-muted">Synchronize the registry to discover available infrastructure nodes.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('sync-btn').addEventListener('click', function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        
+        showTopProgress();
+        
+        fetch('/repos/sync', { method: 'POST' })
+            .then(r => r.json())
+            .then(() => {
+                completeTopProgress();
+                setTimeout(() => window.location.reload(), 200);
+            })
+            .catch(() => { 
+                completeTopProgress();
+                btn.disabled = false; 
+                btn.innerHTML = originalHtml; 
+            });
+    });
+</script>
+{% endblock %}

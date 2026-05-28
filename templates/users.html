@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .users-container {
+        width: 100%;
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* --- User Status Bar --- */
+    .status-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    /* --- Registry Section --- */
+    .registry-section {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .registry-header {
+        padding: 20px 24px;
+        background: var(--bg-sidebar);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .registry-header h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .user-avatar-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: white;
+        font-size: 0.9rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .role-badge {
+        display: inline-flex;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .role-admin { background: #fee2e2; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.1); }
+    .role-developer { background: #e0e7ff; color: #4338ca; border: 1px solid rgba(67, 56, 202, 0.1); }
+    .role-viewer { background: #f3f4f6; color: #4b5563; border: 1px solid var(--border); }
+
+    .status-active { color: var(--accent-success); font-weight: 700; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
+    .status-inactive { color: var(--text-dim); font-weight: 600; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
+
+    /* --- Modal Refinement --- */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(12, 15, 20, 0.4);
+        backdrop-filter: blur(8px);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-card {
+        width: 100%;
+        max-width: 520px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--shadow-lg);
+        animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-header {
+        padding: 24px 32px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body { padding: 32px; }
+
+    .form-group { margin-bottom: 24px; }
+    .form-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        letter-spacing: 0.05em;
+    }
+
+    .input-field {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--bg-sidebar);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 0.9rem;
+        color: var(--text-main);
+        outline: none;
+        transition: all 0.2s;
+    }
+    .input-field:focus { border-color: var(--accent-primary); background: white; box-shadow: 0 0 0 4px var(--accent-glow); }
+
+    .role-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .role-opt { cursor: pointer; position: relative; }
+    .role-opt input { position: absolute; opacity: 0; }
+    .role-opt-box {
+        padding: 16px 8px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        text-align: center;
+        background: var(--bg-sidebar);
+        color: var(--text-muted);
+        transition: all 0.2s;
+    }
+    .role-opt input:checked + .role-opt-box {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
+        color: white;
+        box-shadow: 0 4px 12px var(--accent-glow);
+    }
+    .role-opt-box i { display: block; margin-bottom: 8px; font-size: 1.25rem; }
+    .role-opt-box span { font-size: 0.75rem; font-weight: 700; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    <div class="page-header">
+        <div>
+            <nav class="breadcrumb" style="margin-bottom: 12px;">
+                <a href="/" class="breadcrumb-item">AICRA</a>
+                <span class="breadcrumb-item active">USER MANAGEMENT</span>
+            </nav>
+            <h1 style="margin: 0;">Identity Registry</h1>
+            <p class="text-muted">Orchestrate system access levels and administrative authority nodes.</p>
+        </div>
+        <button class="btn btn-primary" onclick="toggleModal(true)">
+            <i class="fas fa-user-plus"></i> Provision New Account
+        </button>
+    </div>
+
+    <!-- Status Overview (Similar to Settings Health Bar) -->
+    <div class="status-overview">
+        <div class="stat-card">
+            <div class="stat-card-icon"><i class="fas fa-users-viewfinder"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Total Identity Nodes</div>
+                <div class="value">{{ users|length }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon" style="color: var(--accent-success);"><i class="fas fa-user-check"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Active Sessions</div>
+                <div class="value">{{ users|selectattr('is_active', 'equalto', 1)|list|length }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-icon" style="color: #ef4444;"><i class="fas fa-shield-halved"></i></div>
+            <div class="stat-card-info">
+                <div class="label">Administrative Authority</div>
+                <div class="value">{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Registry Section -->
+    <div class="registry-section">
+        <div class="registry-header">
+            <h2><i class="fas fa-address-book text-accent"></i> Authorized Agents</h2>
+            <div class="text-dim" style="font-size: 0.75rem; font-weight: 700;">
+                {{ users|length }} TOTAL NODES
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 60px;"></th>
+                    <th>Full Identity</th>
+                    <th>Email Endpoint</th>
+                    <th>Access Role</th>
+                    <th>Node Status</th>
+                    <th>Last Synchronized</th>
+                    <th style="text-align: right;">Orchestration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user_item in users %}
+                <tr>
+                    <td>
+                        <div class="user-avatar-circle" style="background: {{ 'linear-gradient(135deg, #ef4444, #f87171)' if user_item.role == 'admin' else 'var(--accent-primary)' }};">
+                            {{ user_item.username[0].upper() }}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 700; color: var(--text-main);">{{ user_item.username }}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-dim); font-family: var(--font-mono); margin-top: 2px;">UID: #{{ user_item.id }}</div>
+                    </td>
+                    <td class="text-muted" style="font-size: 0.875rem;">{{ user_item.email or '--' }}</td>
+                    <td>
+                        <span class="role-badge role-{{ user_item.role }}">{{ user_item.role }}</span>
+                    </td>
+                    <td>
+                        {% if user_item.is_active %}
+                            <span class="status-active"><div class="pulse"></div> ACTIVE</span>
+                        {% else %}
+                            <span class="status-inactive"><i class="fas fa-circle" style="font-size: 8px;"></i> IDLE</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-dim" style="font-size: 0.8125rem;">
+                        <i class="fas fa-clock-rotate-left" style="margin-right: 6px; opacity: 0.5;"></i>
+                        {{ user_item.last_login.strftime('%b %d, %H:%M') if user_item.last_login else 'NEVER' }}
+                    </td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-outline" style="padding: 6px 14px; font-size: 0.75rem;" onclick="toggleUserStatus({{ user_item.id }})">
+                            <i class="fas {{ 'fa-power-off' if user_item.is_active else 'fa-plug' }}"></i>
+                            {{ 'Suspend' if user_item.is_active else 'Activate' }}
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Provisioning Modal -->
+<div id="userModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 style="margin: 0; font-size: 1.125rem; font-weight: 800;">Provision New Agent</h3>
+            <button class="btn btn-outline btn-icon" onclick="toggleModal(false)" style="border: none; box-shadow: none; background: transparent;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form action="/users/create" method="POST">
+                <div class="form-group">
+                    <label class="form-label">Network Alias</label>
+                    <input type="text" name="username" class="input-field" placeholder="e.g. santosh.k" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Endpoint</label>
+                    <input type="email" name="email" class="input-field" placeholder="user@aicra.intelligence">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Initial Access Cipher</label>
+                    <input type="password" name="password" class="input-field" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Authority Assignment</label>
+                    <div class="role-selector">
+                        <label class="role-opt">
+                            <input type="radio" name="role" value="developer" checked>
+                            <div class="role-opt-box">
+                                <i class="fas fa-code"></i>
+                                <span>Dev</span>
+                            </div>
+                        </label>
+                        <label class="role-opt">
+                            <input type="radio" name="role" value="admin">
+                            <div class="role-opt-box">
+                                <i class="fas fa-shield-halved"></i>
+                                <span>Admin</span>
+                            </div>
+                        </label>
+                        <label class="role-opt">
+                            <input type="radio" name="role" value="viewer">
+                            <div class="role-opt-box">
+                                <i class="fas fa-eye"></i>
+                                <span>Viewer</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-top: 40px;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 16px; font-size: 0.9rem; border-radius: 12px;">
+                        <i class="fas fa-user-plus"></i> Deploy Agent Node
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleModal(show) {
+        document.getElementById('userModal').style.display = show ? 'flex' : 'none';
+    }
+
+    function toggleUserStatus(userId) {
+        fetch(`/users/${userId}/toggle`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) location.reload();
+            });
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('userModal');
+        if (event.target == modal) toggleModal(false);
+    }
+</script>
+{% endblock %}

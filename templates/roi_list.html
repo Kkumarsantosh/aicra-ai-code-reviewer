@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .roi-matrix-container {
+        width: 100%;
+        animation: fadeIn 0.4s ease-out;
+        background: #fdfdfd;
+        min-height: calc(100vh - 100px);
+        padding: 0;
+    }
+
+    /* --- Spatial HUD --- */
+    .matrix-hud {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 40px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .matrix-title h1 {
+        font-size: 2.25rem;
+        font-weight: 900;
+        letter-spacing: -1px;
+        margin: 0;
+        color: var(--text-main);
+    }
+
+    .matrix-stats-grid {
+        display: flex;
+        gap: 16px;
+    }
+
+    /* --- Launch Command Center --- */
+    .command-strip {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 8px;
+        display: flex;
+        gap: 12px;
+        margin-bottom: 48px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    }
+
+    .command-input {
+        flex: 1;
+        padding: 12px 20px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-main);
+        outline: none;
+        transition: all 0.2s;
+    }
+    .command-input:hover { background: var(--bg-sidebar); }
+    .command-input:focus { border-color: var(--accent-primary); background: white; }
+
+    .btn-launch {
+        background: var(--text-main);
+        color: white;
+        border: none;
+        padding: 0 32px;
+        border-radius: 14px;
+        font-weight: 800;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .btn-launch:hover { background: var(--accent-primary); transform: scale(1.02); }
+
+    /* --- Spatial Grid --- */
+    .matrix-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 24px;
+    }
+
+    @media (max-width: 1600px) {
+        .matrix-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (max-width: 1200px) {
+        .matrix-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 900px) {
+        .matrix-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+        .matrix-grid { grid-template-columns: 1fr; }
+    }
+
+    .audit-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 32px;
+        position: relative;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+    }
+
+    .audit-card:hover {
+        transform: translateY(-10px);
+        border-color: var(--accent-primary);
+        box-shadow: 0 30px 60px rgba(150, 137, 232, 0.12);
+    }
+
+    .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 32px;
+    }
+
+    .audit-node-name {
+        font-size: 1.25rem;
+        font-weight: 900;
+        color: var(--text-main);
+        letter-spacing: -0.5px;
+        margin-bottom: 4px;
+    }
+
+    .audit-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--text-dim);
+        background: var(--bg-sidebar);
+        padding: 4px 10px;
+        border-radius: 100px;
+    }
+
+    .audit-footer {
+        margin-top: auto;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .status-ring {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--accent-success);
+    }
+
+    .pulse-ring {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent-success);
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* --- Modern Pagination --- */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-top: 64px;
+        padding-bottom: 40px;
+    }
+
+    .page-link {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: white;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.875rem;
+    }
+
+    .page-link:hover {
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+        background: var(--accent-glow);
+        transform: translateY(-2px);
+    }
+
+    .page-link.active {
+        background: var(--accent-primary);
+        color: white;
+        border-color: var(--accent-primary);
+        box-shadow: 0 10px 20px var(--accent-glow);
+    }
+
+    .page-link.disabled {
+        opacity: 0.3;
+        pointer-events: none;
+        background: var(--bg-sidebar);
+    }
+
+    .pagination-summary {
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0 20px;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="roi-matrix-container">
+    
+    <!-- Matrix HUD -->
+    <div class="matrix-hud">
+        <div class="matrix-title">
+            <nav class="breadcrumb">
+                <a href="/" class="breadcrumb-item">AICRA</a>
+                <span class="breadcrumb-item active">ENGINEERING_INTELLIGENCE</span>
+            </nav>
+            <h1>Engineering Intelligence</h1>
+        </div>
+        <div class="matrix-stats-grid">
+            <div class="stat-card" style="padding: 10px 20px; min-width: 180px;">
+                <div class="stat-card-icon" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-microchip"></i></div>
+                <div class="stat-card-info">
+                    <div class="label">Total Audits</div>
+                    <div class="value" style="font-size: 1rem;">{{ total_count if total_count else analyses|length }}</div>
+                </div>
+            </div>
+            <a href="/roi/weekly" class="btn btn-outline" style="border-radius: 12px; height: 54px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-calendar-week"></i> WEEKLY_SUMMARY
+            </a>
+        </div>
+    </div>
+
+    <!-- Command Strip -->
+    <div class="command-strip">
+        <form action="/roi/new" method="POST" style="display: contents;">
+            <select name="repo_id" id="repo-select" class="command-input" required onchange="updateBranches()">
+                <option value="" disabled selected>Select Repository</option>
+                {% for r in repos %}
+                <option value="{{ r.id }}">{{ r.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="base_branch" id="base-branch-select" class="command-input" required>
+                <option value="" disabled selected>Target Base</option>
+            </select>
+            <select name="branch" id="branch-select" class="command-input" required>
+                <option value="" disabled selected>Feature Branch</option>
+            </select>
+            <input type="number" name="commits" value="10" class="command-input" style="max-width: 100px;">
+            <button type="submit" class="btn-launch">
+                <i class="fas fa-bolt"></i> RUN_INTEL_SCAN
+            </button>
+        </form>
+    </div>
+
+    <!-- Matrix Grid -->
+    <div class="matrix-grid">
+        {% for a in analyses %}
+        <a href="{% if a.status == 'complete' %}/roi/{{ a.id }}{% else %}/roi/{{ a.id }}/progress{% endif %}" class="audit-card">
+            <div class="card-top">
+                <div class="audit-avatar-box" style="width: 48px; height: 48px; border-radius: 14px; font-size: 1.25rem; background: var(--bg-sidebar); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                    <i class="fas fa-microchip"></i>
+                </div>
+            </div>
+
+            <div class="audit-node-name">{{ a.repo_name }}</div>
+            <div style="margin-bottom: 24px;">
+                <span class="audit-meta-pill"><i class="fas fa-code-branch"></i> {{ a.branch }}</span>
+            </div>
+
+            <p style="font-size: 0.8125rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 24px;">
+                Factual audit of project intent, logical units, and structural footprint.
+            </p>
+
+            <div class="audit-footer">
+                <div class="status-ring">
+                    <div class="pulse-ring"></div>
+                    {{ a.status }}
+                </div>
+                <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-dim); font-family: var(--font-mono);">
+                    AID::0{{ a.id }}
+                </div>
+            </div>
+        </a>
+        {% else %}
+        <div style="grid-column: 1/-1; text-align: center; padding: 100px; border: 2px dashed var(--border); border-radius: 32px;">
+            <i class="fas fa-radar" style="font-size: 3rem; color: var(--text-dim); margin-bottom: 20px; opacity: 0.3;"></i>
+            <h3 class="text-dim">No Active Audits</h3>
+            <p class="text-muted">Initialize a scan from the Command Strip to begin data derivation.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        <a href="{{ url_for('list_roi', page=page-1) }}" class="page-link {{ 'disabled' if page == 1 }}">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        
+        <div class="pagination-summary">
+            PAGE {{ page }} OF {{ total_pages }}
+        </div>
+
+        <a href="{{ url_for('list_roi', page=page+1) }}" class="page-link {{ 'disabled' if page == total_pages }}">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateBranches() {
+        const repoId = document.getElementById('repo-select').value;
+        const branchSelect = document.getElementById('branch-select');
+        const baseSelect = document.getElementById('base-branch-select');
+        fetch(`/repo/${repoId}/branches`)
+            .then(res => res.json())
+            .then(branches => {
+                branchSelect.innerHTML = '';
+                baseSelect.innerHTML = '';
+                branches.forEach(b => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = b.name; opt1.textContent = b.name;
+                    if (b.is_default) opt1.selected = true;
+                    branchSelect.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = b.name; opt2.textContent = b.name;
+                    if (b.is_default) opt2.selected = true;
+                    baseSelect.appendChild(opt2);
+                });
+            });
+    }
+</script>
+{% endblock %}

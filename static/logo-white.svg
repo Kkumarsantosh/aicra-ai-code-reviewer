@@ -1,0 +1,47 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <!-- Dynamic Glow Filters -->
+        <filter id="coreGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feFlood flood-color="#FFFFFF" flood-opacity="0.8" result="glowColor" />
+            <feComposite in="glowColor" in2="blur" operator="in" result="softGlow" />
+            <feMerge>
+                <feMergeNode in="softGlow"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>
+
+    <!-- Background Neural Grid -->
+    <g opacity="0.3">
+        <path d="M10 50 H90 M50 10 V90" stroke="#FFFFFF" stroke-width="0.5" stroke-dasharray="2 4"/>
+        <circle cx="50" cy="50" r="35" stroke="#FFFFFF" stroke-width="0.5" stroke-dasharray="2 4"/>
+    </g>
+
+    <!-- AICRA "A" Apex Monogram (White Version) -->
+    <!-- Left Leg -->
+    <path d="M48 18 L22 82 H36 L43 62 H57 M48 18" fill="#FFFFFF" fill-opacity="0.85"/>
+    
+    <!-- Right Leg -->
+    <path d="M52 18 L78 82 H64 L57 62 H43 M52 18" fill="#FFFFFF" fill-opacity="0.85"/>
+    
+    <!-- Automation Bridge (The Crossbar) -->
+    <path d="M38 48 H62" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" filter="url(#coreGlow)"/>
+
+    <!-- Neural Nodes (Code Review Intelligence) -->
+    <g filter="url(#coreGlow)">
+        <!-- Apex Node -->
+        <circle cx="50" cy="18" r="4" fill="#FFFFFF"/>
+        <!-- Bridge Left -->
+        <circle cx="38" cy="48" r="3" fill="#FFFFFF"/>
+        <!-- Bridge Right -->
+        <circle cx="62" cy="48" r="3" fill="#FFFFFF"/>
+        <!-- Base Left -->
+        <circle cx="29" cy="82" r="3" fill="#FFFFFF"/>
+        <!-- Base Right -->
+        <circle cx="71" cy="82" r="3" fill="#FFFFFF"/>
+        
+        <!-- Central AI Core -->
+        <circle cx="50" cy="65" r="4.5" fill="#FFFFFF"/>
+    </g>
+</svg>

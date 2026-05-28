@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="padding: 40px 0;">
+    <div style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="margin: 0; letter-spacing: -1.5px;">Business Alignment</h1>
+            <p style="color: var(--text-muted); font-weight: 600; margin-top: 4px;">Strategic Objectives Progress (Jira Epics)</p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.7rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Last Mapped</div>
+            <div style="font-weight: 700; color: var(--text-main);">{{ objectives.last_mapped if objectives else 'N/A' }}</div>
+        </div>
+    </div>
+
+    {% if objectives %}
+    <div class="card" style="padding: 32px; margin-bottom: 40px; background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);">
+        <h3 style="margin-top: 0; font-weight: 800; margin-bottom: 24px;">Strategic Summary</h3>
+        <div style="display: flex; align-items: center; gap: 48px;">
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: flex-end;">
+                    <span style="font-weight: 700; color: var(--text-main);">Portfolio Alignment</span>
+                    <span style="font-size: 1.5rem; font-weight: 900; color: var(--accent-primary);">{{ 100 - objectives.unaligned_pct }}%</span>
+                </div>
+                <div style="height: 12px; background: var(--bg-sidebar); border-radius: 6px; overflow: hidden; display: flex;">
+                    <div style="width: {{ 100 - objectives.unaligned_pct }}%; height: 100%; background: var(--accent-primary);"></div>
+                    <div style="width: {{ objectives.unaligned_pct }}%; height: 100%; background: #e2e8f0;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">
+                    <span>Aligned to Epics</span>
+                    <span>Unaligned Work: {{ objectives.unaligned_pct }}%</span>
+                </div>
+            </div>
+            <div style="width: 300px; padding-left: 48px; border-left: 1px solid var(--border);">
+                <div class="justification-label" style="margin-bottom: 8px;"><i class="fas fa-lightbulb"></i> Strategic Insight</div>
+                <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
+                    {% if objectives.unaligned_pct > 30 %}
+                    ⚠️ High percentage of unaligned work detected. Review top unaligned tasks with leadership.
+                    {% else %}
+                    ✅ Strong alignment with strategic objectives.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 32px;">
+        <h3 style="margin-top: 0; font-weight: 800; margin-bottom: 32px;">Objective Progress</h3>
+        
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Objective (Epic)</th>
+                    <th style="width: 300px;">Progress</th>
+                    <th>Tickets</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for obj in objectives.objectives %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 700;">{{ obj.objective }}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono);">{{ obj.key }}</div>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="flex: 1; height: 8px; background: var(--bg-sidebar); border-radius: 4px; overflow: hidden;">
+                                <div style="width: {{ obj.progress_pct }}%; height: 100%; background: var(--accent-primary);"></div>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 800; min-width: 40px;">{{ obj.progress_pct }}%</span>
+                        </div>
+                    </td>
+                    <td>{{ obj.completed_tickets }} / {{ obj.total_tickets }}</td>
+                    <td>
+                        <span class="stat-pill {% if obj.status == 'On Track' %}stat-pill-success{% else %}stat-pill-error{% endif %}">
+                            {{ obj.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card" style="text-align: center; padding: 80px;">
+        <i class="fas fa-bullseye" style="font-size: 3rem; color: var(--text-dim); margin-bottom: 24px; opacity: 0.3;"></i>
+        <h2>No Objectives Found</h2>
+        <p class="text-muted">Unable to find active epics for project {{ project_key }}.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
