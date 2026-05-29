@@ -171,11 +171,10 @@
                     <input type="hidden" name="repo_id" value="{{ repo.id }}">
                     <div style="margin-bottom: 24px;">
                         <label class="form-label">Target Branch</label>
-                        <select name="branch" class="select-custom">
-                            {% for branch in branches %}
-                                <option value="{{ branch.name }}" {{ 'selected' if branch.is_default else '' }}>{{ branch.name }}</option>
-                            {% endfor %}
+                        <select name="branch" id="branch-select" class="select-custom" disabled>
+                            <option value="">Loading branches…</option>
                         </select>
+                        <div id="branch-error" style="display:none; font-size:0.75rem; color:var(--accent-error); margin-top:6px; font-weight:600;"></div>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;" {{ 'disabled' if not repo.sonar_project_key else '' }}>
                         <i class="fas fa-rocket"></i> Initialize Neural Scan
@@ -317,4 +316,47 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const repoId = {{ repo.id }};
+    const sel = document.getElementById('branch-select');
+    const err = document.getElementById('branch-error');
+
+    function showFallback(msg) {
+        sel.innerHTML = '<option value="main">main</option>';
+        sel.disabled = false;
+        err.textContent = msg;
+        err.style.display = 'block';
+    }
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000); // 20s browser timeout
+
+    fetch(`/repo/${repoId}/branches`, { signal: ctrl.signal })
+        .then(r => r.json())
+        .then(data => {
+            clearTimeout(timer);
+            if (data.error) {
+                showFallback('Branches unavailable — defaulting to main. (' + data.error + ')');
+                return;
+            }
+            sel.innerHTML = '';
+            data.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.name;
+                opt.textContent = b.name;
+                if (b.is_default) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.disabled = false;
+        })
+        .catch(() => {
+            clearTimeout(timer);
+            showFallback('Branch list unavailable — defaulting to main.');
+        });
+})();
+</script>
 {% endblock %}

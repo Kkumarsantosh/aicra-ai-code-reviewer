@@ -3,14 +3,14 @@ import json
 import time
 import hashlib
 import re
-import subprocess
-import threading
-from datetime import datetime
 from typing import List, Dict, Any, Set
 
 from config import Config
 from engine import db
+from engine.ai_provider import AIProvider
 from engine.git_manager import GitManager
+
+_JSON_TEMP = Config.AI_TEMPERATURE_JSON   # all FDS calls produce structured JSON
 
 class FDSAnalyzer:
     """
@@ -30,8 +30,7 @@ class FDSAnalyzer:
 
     def __init__(self):
         self.git = GitManager()
-        self.last_call_time = 0
-        self.min_call_interval = 1.0  # 1 second between calls
+        self.ai = AIProvider()
 
     def _log_progress(self, analysis_id: int, step: str, message: str):
         """Log analysis progress to database and console."""
@@ -77,16 +76,28 @@ class FDSAnalyzer:
         # Limit content for mapping to first 50k chars to get the gist/TOC
         mapping_context = content[:50000]
         
-        prompt = f"""You are a Document Architect. Analyze this FDS and build a hierarchical Structural Index (PageIndex).
+        prompt = f"""You are a Senior Technical Business Analyst with 15 years of experience reading Functional Design Specifications (FDS), Software Requirement Specifications (SRS), and technical design documents across banking, fintech, and enterprise software.
 
-FDS CONTENT SNIPPET:
+You understand document structure regardless of format: numbered sections, tables of contents, unnumbered prose sections, page headers, and flat PDFs with no explicit structure markers.
+
+DOCUMENT CONTENT (first 50,000 characters):
 {mapping_context}
 
 TASK:
-Identify the natural sections, chapters, and page ranges.
-For each section, provide a brief summary of what it covers.
+Build a hierarchical PageIndex (structural map) of this document.
+- Identify every logical section, chapter, and subsection.
+- If the document has a Table of Contents, use it as your primary guide.
+- If there is no TOC, infer structure from numbered headings, bold titles, or thematic breaks.
+- page_start and page_end refer to the page numbers marked "--- PAGE X ---" in the text. If no page markers exist, use sequential position (1, 2, 3...).
+- level: 1 = top-level chapter, 2 = subsection, 3 = sub-subsection.
+- summary: 1-2 sentences capturing what kinds of requirements live in this section (not just restating the title).
 
-OUTPUT FORMAT (strict JSON):
+RULES:
+- Cover the ENTIRE document. Do not stop after the first few sections.
+- Introductions, appendices, glossaries, and non-requirement sections still get index entries.
+- If the document has no discernible structure, create one entry covering the whole document.
+
+OUTPUT FORMAT (strict JSON, no prose before or after):
 {{
     "index": [
         {{
@@ -94,20 +105,27 @@ OUTPUT FORMAT (strict JSON):
             "page_start": 1,
             "page_end": 2,
             "level": 1,
-            "summary": "Project background, objectives and KPIs."
+            "summary": "Project background, stakeholder context, and high-level objectives."
         }},
         {{
-            "title": "2. System Requirements",
-            "page_start": 2,
-            "page_end": 5,
+            "title": "2. Functional Requirements",
+            "page_start": 3,
+            "page_end": 8,
             "level": 1,
-            "summary": "Technical constraints, CMS configurations, and core logic."
+            "summary": "Core business logic including wallet transactions, redemption flow, and merchant callbacks."
+        }},
+        {{
+            "title": "2.1 Wallet Transactions",
+            "page_start": 3,
+            "page_end": 5,
+            "level": 2,
+            "summary": "Credit, debit, balance inquiry, and transaction history requirements."
         }}
     ]
 }}
 """
         try:
-            response = self._call_api(prompt, use_pro=False)
+            response = self.ai.complete(prompt, use_large_model=False, temperature=_JSON_TEMP)
             data = self._parse_json_response(response, default={'index': []})
             index_data = data.get('index', [])
             
@@ -162,39 +180,47 @@ OUTPUT FORMAT (strict JSON):
 
             if not section_text.strip(): continue
 
-            prompt = f"""Extract requirements from this specific section of the FDS.
+            prompt = f"""You are a Senior Business Analyst and QA Architect with deep expertise in IEEE 830, enterprise FDS documents, and translating business intent into verifiable software requirements.
 
-SECTION CONTEXT: {section['title']}
-SECTION SUMMARY: {section['summary']}
+You are extracting requirements from a specific section of a Functional Design Specification.
+
+DOCUMENT SECTION: {section['title']}
+SECTION PURPOSE: {section['summary']}
 
 SECTION CONTENT:
 {section_text}
 
 TASK:
-Extract all functional and technical requirements.
-DO NOT just output 1-liners. Use your deep understanding of software engineering and industry standards to make the requirements highly descriptive.
-For each requirement:
-1. Provide a comprehensive description that explains the "why" and "how".
-2. Include implicit industry-standard expectations (e.g., security, edge cases, error handling, performance) that apply to the requirement.
-3. Detail specific acceptance criteria.
+Extract every requirement in this section — explicit and implicit.
 
-Return as a JSON object with a "requirements" array.
+EXTRACTION RULES:
+1. EXPLICIT REQUIREMENTS: Any statement using "shall", "must", "will", "should", or a numbered requirement ID.
+2. IMPLICIT REQUIREMENTS: Any feature description that implies a standard engineering expectation. Examples:
+   - A "login" feature implicitly requires: brute-force protection, session timeout, secure password storage (bcrypt/argon2), audit logging.
+   - A "payment" feature implicitly requires: idempotency, transaction rollback on failure, PCI compliance considerations.
+   - Any "API callback" implicitly requires: retry handling, signature verification, idempotency key.
+3. MODAL STRENGTH: Treat "shall"/"must" as MANDATORY, "should" as RECOMMENDED, "may" as OPTIONAL. Include all three but tag the type field accordingly.
+4. DO NOT produce 1-line requirements. Every description must explain the "what", "why", and the failure scenario if not implemented.
+5. ACCEPTANCE CRITERIA must be testable and specific. Not "the system works correctly" — instead "given a duplicate webhook with the same idempotency key, the system returns HTTP 200 without re-processing the transaction".
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT FORMAT (strict JSON, no prose before or after):
 {{
     "requirements": [
         {{
-            "id": "REQ-ID",
-            "title": "Title",
-            "description": "Comprehensive requirement text, including deep context, business logic, and industry standard implicit requirements (security, edge cases, etc.).",
-            "type": "Functional/Technical",
-            "acceptance_criteria": ["Criteria 1", "Criteria 2"]
+            "id": "REQ-001",
+            "title": "Concise title naming the feature and the constraint",
+            "description": "Full description: what the system must do, why it exists, what failure looks like if not implemented, and any industry-standard implicit expectations that apply.",
+            "type": "Mandatory",
+            "acceptance_criteria": [
+                "Given [precondition], when [action], then [expected outcome with specific values]",
+                "Given [error condition], when [retry], then [idempotent outcome]"
+            ]
         }}
     ]
 }}
 """
             try:
-                response = self._call_api(prompt, use_pro=False)
+                response = self.ai.complete(prompt, use_large_model=False, temperature=_JSON_TEMP)
                 data = self._parse_json_response(response, default={'requirements': []})
                 reqs = data.get('requirements', [])
                 
@@ -316,41 +342,52 @@ OUTPUT FORMAT (strict JSON):
             print("      [FDS] Using cached requirement extraction")
             return json.loads(cached[0]['requirements_json'])
             
-        prompt = f"""You are a requirements analyst. Extract ALL requirements from this FDS document.
+        prompt = f"""You are a Senior Business Analyst and QA Architect with deep expertise in IEEE 830, enterprise FDS documents, and translating business intent into verifiable software requirements.
 
 FDS DOCUMENT:
 {fds_text[:100000]}
 
 TASK:
-1. Identify every requirement (statements with "shall", "must", "should", numbered requirements, etc.)
-2. DO NOT just output 1-liners. Use your deep understanding of software engineering and industry standards to make the requirements highly descriptive.
-3. Provide a comprehensive description that explains the "why" and "how".
-4. Include implicit industry-standard expectations (e.g., security, edge cases, error handling, performance) that apply to the requirement.
-5. Extract requirement ID, title, description, type, and specific acceptance criteria.
-6. Return as a JSON object with a "requirements" array.
+Extract EVERY requirement from this document — explicit and implicit.
 
-OUTPUT FORMAT (strict JSON):
+EXTRACTION RULES:
+1. EXPLICIT: Any statement with "shall", "must", "will", "should", a numbered ID (e.g. FR-01), or a clear imperative ("The system displays...").
+2. IMPLICIT: Any feature that carries standard engineering expectations. Examples:
+   - "User login" → implies: brute-force lockout, session expiry, secure password storage, audit log.
+   - "Payment processing" → implies: idempotency, rollback on failure, PCI scope considerations.
+   - "API callback / webhook" → implies: signature verification, retry with idempotency, dead-letter handling.
+   - "Report generation" → implies: pagination, export size limits, access control.
+3. MODAL STRENGTH: Tag type as "Mandatory" (shall/must), "Recommended" (should), or "Optional" (may).
+4. DEPTH: Every description must answer — what must the system do, why does it exist, and what is the failure scenario if it is not implemented?
+5. ACCEPTANCE CRITERIA must be testable. Not "works correctly" — instead "given a duplicate request with the same idempotency key, the system returns 200 without re-executing the transaction."
+6. KEYWORDS: 3-8 lowercase terms that would appear in the source code implementing this requirement (function names, table names, route patterns, class names).
+7. Preserve original IDs if present. Generate sequential IDs (FDS-REQ-01, FDS-REQ-02...) when absent.
+
+ANTI-PATTERNS — do NOT do these:
+- Do not produce 1-line descriptions.
+- Do not skip implicit security, error handling, or performance requirements.
+- Do not merge two distinct requirements into one entry.
+- Do not include UI layout or cosmetic details as functional requirements.
+
+OUTPUT FORMAT (strict JSON, no prose before or after):
 {{
     "requirements": [
         {{
             "id": "FDS-REQ-01",
-            "title": "Short title",
-            "description": "Comprehensive requirement text, including deep context, business logic, and industry standard implicit requirements (security, edge cases, etc.).",
-            "type": "Functional",
-            "acceptance_criteria": ["Criteria 1: ...", "Criteria 2: ..."],
-            "keywords": ["wallet", "payment", "transaction"]
+            "title": "Concise title naming the feature and the constraint",
+            "description": "Full description: what the system must do, why it exists, what failure looks like if not implemented, and any industry-standard implicit expectations that apply.",
+            "type": "Mandatory",
+            "acceptance_criteria": [
+                "Given [precondition], when [action], then [specific measurable outcome]",
+                "Given [failure condition], when [retry/recovery], then [safe idempotent outcome]"
+            ],
+            "keywords": ["wallet", "debit", "transaction", "balance"]
         }}
     ]
 }}
-
-RULES:
-- Extract EVERY requirement, do not skip any
-- Preserve original requirement IDs if present
-- Keywords should help find relevant code files
-- Return ONLY valid JSON
 """
         try:
-            response = self._call_api(prompt, use_pro=False)
+            response = self.ai.complete(prompt, use_large_model=False, temperature=_JSON_TEMP)
             data = self._parse_json_response(response, default={'requirements': []})
             requirements = data.get('requirements', [])
             
@@ -460,136 +497,152 @@ RULES:
         else:
             return "UNCERTAIN"
 
-    def _verify_requirements_batched(self, analysis_id: int, requirements: List[Dict], 
+    def _verify_requirements_batched(self, analysis_id: int, requirements: List[Dict],
                                       mapping: Dict[str, List[str]], code_index: Dict) -> List[Dict]:
         BATCH_SIZE = 5
         all_results = []
-        
         batches = [requirements[i:i + BATCH_SIZE] for i in range(0, len(requirements), BATCH_SIZE)]
-        total_batches = len(batches)
-        
+
         for idx, batch in enumerate(batches):
-            self._log_progress(analysis_id, "VERIFYING", f"Batch {idx+1}/{total_batches}...")
-            
-            relevant_files = set()
-            for req in batch:
-                rid = req.get('req_id') or req.get('id')
-                relevant_files.update(mapping.get(rid, []))
-            
-            context = ""
-            current_tokens = 0
-            MAX_TOKENS = 60000
-            
-            for fpath in sorted(list(relevant_files))[:15]:
-                if fpath in code_index:
-                    fcontent = code_index[fpath]['content']
-                    file_text = f"=== FILE: {fpath} ===\n{fcontent[:10000]}\n\n"
-                    context += file_text
-                    current_tokens += len(file_text) // 4
-                    if current_tokens > MAX_TOKENS: break
+            self._log_progress(analysis_id, "VERIFYING", f"Batch {idx+1}/{len(batches)}...")
+            context = self._build_code_context(batch, mapping, code_index)
+            all_results.extend(self._run_single_batch(batch, context))
+            time.sleep(1)
 
-            prompt = f"""Verify these requirements against the code context.
+        return all_results
 
-REQUIREMENTS:
-{json.dumps([{ 'id': r.get('req_id') or r.get('id'), 'desc': r.get('description') } for r in batch], indent=2)}
+    def _build_code_context(self, batch: List[Dict], mapping: Dict, code_index: Dict) -> str:
+        relevant_files: set = set()
+        for req in batch:
+            rid = req.get('req_id') or req.get('id')
+            relevant_files.update(f for f in mapping.get(rid, []) if isinstance(f, str))
+
+        context = ""
+        tokens = 0
+        for fpath in sorted(relevant_files)[:15]:
+            if fpath not in code_index:
+                continue
+            block = f"=== FILE: {fpath} ===\n{code_index[fpath]['content'][:10000]}\n\n"
+            tokens += len(block) // 4
+            if tokens > 60000:
+                break
+            context += block
+        return context
+
+    def _run_single_batch(self, batch: List[Dict], context: str) -> List[Dict]:
+        try:
+            response = self.ai.complete(
+                self._build_verification_prompt(batch, context),
+                use_large_model=True,
+                temperature=_JSON_TEMP,
+            )
+            data = self._parse_json_response(response, default={'verifications': []})
+            verifications = data.get('verifications', [])
+            verifications = self._fill_missing_results(batch, verifications)
+            return self._enrich_verifications(verifications)
+        except Exception as e:
+            print(f"      [FDS] Batch verification failed: {e}")
+            return self._not_verified_results(batch, str(e))
+
+    def _fill_missing_results(self, batch: List[Dict], verifications: List[Dict]) -> List[Dict]:
+        batch_ids = {str(r.get('req_id') or r.get('id', '')) for r in batch}
+        received_ids = {str(v.get('requirement_id', '')) for v in verifications}
+        for mid in batch_ids - received_ids:
+            verifications.append({
+                "requirement_id": mid,
+                "status": "NOT_VERIFIED",
+                "confidence": 0,
+                "reasoning": "API did not return result for this requirement",
+                "evidence": [], "gaps": [],
+            })
+        return verifications
+
+    def _enrich_verifications(self, verifications: List[Dict]) -> List[Dict]:
+        for v in verifications:
+            v['implementation_coverage'] = self.calculate_implementation_coverage(v)
+            v['reliability'] = self.assess_reliability(v['status'], v.get('confidence', 0))
+        return verifications
+
+    @staticmethod
+    def _not_verified_results(batch: List[Dict], reason: str) -> List[Dict]:
+        return [{
+            "requirement_id": str(req.get('req_id') or req.get('id', '')),
+            "status": "NOT_VERIFIED", "confidence": 0,
+            "implementation_coverage": 0, "reliability": "UNCERTAIN",
+            "reasoning": f"Error during verification: {reason}",
+            "evidence": [], "gaps": [],
+        } for req in batch]
+
+    def _build_verification_prompt(self, batch: List[Dict], context: str) -> str:
+        req_list = json.dumps(
+            [{'id': r.get('req_id') or r.get('id'), 'description': r.get('description')} for r in batch],
+            indent=2,
+        )
+        return f"""You are a Senior QA Architect and Code Auditor with 15 years of experience verifying software implementations against functional specifications. You have conducted gap analyses for banking systems, payment gateways, and regulated enterprise software.
+
+You think like an auditor: you look for what IS in the code, what is MISSING, and what CONFLICTS with the spec. You do not guess — if the code is not visible in the context provided, you lower your confidence and say so explicitly.
+
+REQUIREMENTS TO VERIFY:
+{req_list}
 
 CODE CONTEXT:
 {context}
 
 TASK:
-Determine the implementation status for each requirement based on the provided code context.
-Use your deep software engineering expertise and industry standards to provide a highly descriptive and analytical assessment.
-DO NOT use brief 1-liners.
-1. The reasoning must explicitly analyze how the codebase aligns (or fails to align) with the specific functional and non-functional aspects of the requirement, citing exact logic patterns, missing edge cases, or security/performance implications.
-2. The gaps must be detailed and descriptive, explaining exactly what is missing and why it is critical for a robust implementation.
+For each requirement, determine its implementation status by reading the provided code.
 
-Return a JSON object with a "verifications" array.
+STATUS DEFINITIONS — assign exactly one:
 
-OUTPUT FORMAT:
+VERIFIED
+The requirement is fully implemented. You can cite specific functions, routes, classes, or logic in the provided code that satisfy EVERY aspect of the requirement, including its implicit expectations (security, error handling, edge cases).
+
+PARTIAL
+The core logic exists but at least one critical aspect is missing or incomplete. The requirement is partially satisfied. You must list the specific gaps.
+
+NOT_IMPLEMENTED
+No code addressing this requirement exists in the provided context. The feature is absent.
+
+CONFLICTING
+Code exists but implements the requirement DIFFERENTLY from the specification. Example: spec requires JWT auth, code uses session cookies. State exactly what conflicts.
+
+NOT_VERIFIED
+The provided code context does not contain enough information to make a determination. Lower confidence and explain what you would need to see.
+
+CALIBRATION RULES:
+- Do NOT mark VERIFIED just because a function with a related name exists. Read the implementation.
+- Do NOT mark NOT_IMPLEMENTED just because you cannot find an exact function name. The logic may exist under different naming.
+- PARTIAL is the most common real-world status. Use it when the happy path works but error handling, edge cases, or security controls are missing.
+- Confidence reflects your certainty given the code VISIBLE TO YOU. If the implementation may exist in files not shown, lower confidence to 0.6 or below.
+
+REASONING QUALITY:
+- Name the specific function, route, class, or variable that implements (or fails to implement) the requirement.
+- For PARTIAL and NOT_IMPLEMENTED: describe the exact missing piece and why it matters in production.
+- For CONFLICTING: quote both the spec's expectation and the code's actual behavior.
+- Do NOT write "the code appears to..." — state what it does or does not do.
+
+ANTI-PATTERNS — do NOT do these:
+- Do not mark VERIFIED based on a comment or variable name alone.
+- Do not mark CONFLICTING because the implementation uses a different technical approach that achieves the same outcome.
+- Do not produce gaps like "could be improved" — gaps must be MISSING behaviour, not style preferences.
+- Do not produce reasoning like "the code handles this correctly" without citing the specific code.
+
+OUTPUT FORMAT (strict JSON, no prose before or after):
 {{
   "verifications": [
     {{
       "requirement_id": "REQ-ID",
-      "status": "VERIFIED | PARTIAL | NOT_IMPLEMENTED | CONFLICTING",
-      "confidence": 0.0 to 1.0,
-      "reasoning": "Detailed, descriptive reasoning analyzing the implementation against the requirement, including architecture, edge cases, and industry standards.",
-      "evidence": [{{ "file": "path", "line": 123, "snippet": "..." }}],
-      "gaps": ["Detailed description of missing logic or edge case 1", "Detailed description of missing logic 2"]
+      "status": "VERIFIED | PARTIAL | NOT_IMPLEMENTED | CONFLICTING | NOT_VERIFIED",
+      "confidence": 0.0,
+      "reasoning": "Specific analysis citing exact code. Name the function/route/class. State what it does and what it is missing.",
+      "evidence": [
+        {{"file": "path/to/file.go", "line": 87, "snippet": "relevant code line"}}
+      ],
+      "gaps": [
+        "Specific missing behaviour with production impact."
+      ]
     }}
   ]
-}}
-
-METRIC DEFINITION:
-- confidence (0.0 - 1.0): How CERTAIN you are that your assessment is correct based on the evidence you found (or lack thereof). 1.0 means you have exhaustively checked and are 100% sure.
-"""
-            try:
-                response = self._call_api(prompt, use_pro=True)
-                batch_data = self._parse_json_response(response, default={'verifications': []})
-                verifications = batch_data.get('verifications', [])
-                
-                batch_ids = {r.get('req_id') or r.get('id') for r in batch}
-                received_ids = {v.get('requirement_id') for v in verifications}
-                missing_ids = batch_ids - received_ids
-                
-                for mid in missing_ids:
-                    verifications.append({
-                        "requirement_id": mid,
-                        "status": "NOT_VERIFIED",
-                        "confidence": 0,
-                        "reasoning": "API did not return result for this requirement",
-                        "evidence": [], "gaps": []
-                    })
-                
-                # Enrich with derived metrics
-                for v in verifications:
-                    v['implementation_coverage'] = self.calculate_implementation_coverage(v)
-                    v['reliability'] = self.assess_reliability(v['status'], v.get('confidence', 0))
-
-                all_results.extend(verifications)
-            except Exception as e:
-                print(f"      [FDS] Batch {idx+1} failed: {e}")
-                for req in batch:
-                    all_results.append({
-                        "requirement_id": req.get('req_id') or req.get('id'),
-                        "status": "NOT_VERIFIED", "confidence": 0,
-                        "implementation_coverage": 0,
-                        "reliability": "UNCERTAIN",
-                        "reasoning": f"Error during verification: {str(e)}",
-                        "evidence": [], "gaps": []
-                    })
-            
-            time.sleep(1)
-            
-        return all_results
-
-    def _call_api(self, prompt: str, use_pro: bool = False) -> str:
-        # Rate limiting
-        elapsed = time.time() - self.last_call_time
-        if elapsed < self.min_call_interval:
-            time.sleep(self.min_call_interval - elapsed)
-            
-        model_tier = "pro" if use_pro else "flash"
-        
-        try:
-            cmd = [
-                Config.GEMINI_CLI_BIN,
-                "--prompt", prompt,
-                "--approval-mode", "plan",
-                "--sandbox",
-                "--model", model_tier,
-                "--output-format", "text"
-            ]
-            
-            # Use a generous 10-minute timeout for large documents
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=600)
-            self.last_call_time = time.time()
-            return result.stdout
-        except subprocess.TimeoutExpired:
-            print(f"      [FDS] API Call timed out after 600s")
-            raise Exception("Gemini CLI call timed out")
-        except subprocess.CalledProcessError as e:
-            print(f"      [FDS] API Call failed: {e.stderr}")
-            raise Exception(f"Gemini CLI call failed: {e.stderr}")
+}}"""
 
     def _parse_json_response(self, response: str, default: Any) -> Any:
         try:

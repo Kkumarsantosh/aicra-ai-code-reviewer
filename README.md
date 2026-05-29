@@ -2,7 +2,7 @@
 
 AICRA is an advanced developer intelligence dashboard and automated compliance pipeline that orchestrates **AI-Assisted Code Reviews**, **Engineering Return on Investment (ROI) Auditing**, and **Functional Design Specification (FDS) Gap Analysis**. 
 
-Designed for modern engineering leadership and development teams, AICRA connects your actual development activity (Git commits, file structural footprint) with Jira tracking, SonarQube static analysis, and Gemini large language models to ensure complete behavioral and architectural alignment.
+Designed for modern engineering leadership and development teams, AICRA connects your actual development activity (Git commits, file structural footprint) with Jira tracking, SonarQube static analysis, and your choice of AI model — **OpenAI GPT-4o**, **Anthropic Claude**, or **Google Gemini** — to ensure complete behavioural and architectural alignment.
 
 ---
 
@@ -79,25 +79,26 @@ ai-code-review/
 │   ├── .env.template           # Template for environment credentials
 │   └── .env                    # Active environment variables (git-ignored)
 ├── engine/
-│   ├── db.py                   # Database utility wrapper (MySQL connection)
-│   ├── git_manager.py          # Clones and manages local code repositories in workspace
-│   ├── review_runner.py        # Background review orchestrator (Sonar & AI review flow)
-│   ├── roi_auditor.py          # ROI alignment auditor, cloc/git-sizer integration
-│   ├── fds_analyzer.py         # Functional Design Specification requirement gap analyzer
-│   ├── jira_client.py          # Read-only interface for Atlassian Jira APIs
-│   ├── sonar_client.py         # Interacts with SonarQube API to pull scan issues
-│   ├── report_builder.py       # Helper that generates unified HTML review reports
-│   └── parse_output.py         # Static analyzer and LLM output parsing logic
+│   ├── ai_provider.py          # Unified AI client (OpenAI / Anthropic / Gemini SDK / Gemini CLI)
+│   ├── db.py                   # MySQL connection pool and query helpers
+│   ├── fds_analyzer.py         # FDS requirement extraction and gap analysis
+│   ├── git_manager.py          # GitHub API, repo cloning, branch management
+│   ├── jira_client.py          # Read-only Atlassian Jira API client
+│   ├── parse_output.py         # AI response parsing helpers
+│   ├── report_builder.py       # HTML report generator
+│   ├── review_runner.py        # Background review orchestrator (SonarQube + AI pipeline)
+│   └── roi_auditor.py          # Commit intelligence, complexity scoring, unlinked work
 ├── lib/
 │   ├── cloc-2.08.pl            # Lines-of-code calculation perl binary
 │   ├── git-sizer-1.5.0-.../    # Git repository size auditor binary
 │   └── sonar-scanner-.../      # SonarQube static analyzer executable
+├── standards/                  # User-editable coding standards fed to the AI reviewer
+│   ├── my_coding_standards.md  # Your project-wide rules (edit this)
+│   ├── universal_standards.md  # Security, logging — applied to every review
+│   └── go_standards.md         # Language-specific standards (Go, Java, Node, PHP, SQL)
 ├── templates/                  # Flask HTML pages (dashboards, trends, reports)
 ├── static/                     # Assets and stylesheets (CSS, logos)
-├── scripts/
-│   ├── my_coding_standards.md  # Standard guidelines for the AI reviewer to check against
-│   └── standards/              # Language-specific standards (Go, Java, Node, PHP, SQL)
-└── workspace/                  # Local directory for cloning and analyzing repositories
+└── workspace/                  # Local directory for cloning and analysing repositories
 ```
 
 ---
@@ -131,7 +132,7 @@ Create a Python virtual environment and install the required library packages:
 python3 -m venv .venv
 
 # Activate virtual environment
-source .venv/bin/env/activate  # On macOS/Linux
+source .venv/bin/activate  # On macOS/Linux
 # .venv\Scripts\activate       # On Windows
 
 # Install required dependencies
@@ -145,11 +146,11 @@ Copy the environment template and populate your actual API keys and hosts:
 cp config/.env.template config/.env
 ```
 Open `config/.env` in your text editor and configure the fields:
-* **MySQL Details:** Provide your MySQL host, port, username, password, and target database (default: `ai_code_review`).
-* **Jira Credentials:** Provide your Jira organization URL, admin email, and a **Read-Only API Token** (for safety).
-* **SonarQube:** Supply your SonarQube server URL and access token.
-* **Gemini API:** Paste your Google Gemini API key to activate AI-driven insights.
-* **Workspace Paths:** Update local absolute paths pointing to your workspace and reports directory.
+* **MySQL Details:** Host, port, username, password, and database name (default: `ai_code_review`).
+* **AI Provider:** Set `AI_PROVIDER` to one of `openai`, `anthropic`, `gemini`, or `gemini_cli`, then add the corresponding API key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`).
+* **Jira Credentials:** Your Jira URL, admin email, and a **read-only API token**.
+* **SonarQube:** Server URL and access token.
+* **GitHub:** Personal access token (required for private repositories).
 
 #### 4. Initialize the MySQL Database
 Run the database setup script. This script will connect to your MySQL instance, create the `ai_code_review` database, instantiate all required tables, and apply any migration adjustments:
@@ -189,7 +190,7 @@ This shell script:
 2. Validates local system dependencies (`jq`, `curl`, `python3`, `sonar-scanner`).
 3. Executes a local `sonar-scanner` run on your target source project.
 4. Preprocesses and filters findings.
-5. Invokes Gemini to review active findings against your designated coding standards (`scripts/my_coding_standards.md`).
+5. Invokes the configured AI provider to review findings against your coding standards (`standards/my_coding_standards.md`).
 6. Saves a comprehensive, interactive HTML report under the `reports/` folder.
 
 ### 3. Executing FDS Gap Analysis
@@ -215,13 +216,9 @@ We welcome contributions to the AICRA platform! To contribute:
    ```bash
    git checkout -b feature/amazing-new-auditor
    ```
-2. **Follow Coding Standards:** Ensure your code complies with the project's standards located in `scripts/standards/` and `scripts/my_coding_standards.md`.
-3. **Verify Changes:** Run validation and test scripts to verify there are no structural regressions:
-   ```bash
-   python3 test_parser.py
-   python3 test_fds_analysis.py
-   ```
-4. **Submit a Pull Request:** Explain the intent of your changes and wait for a review.
+2. **Follow Coding Standards:** Ensure your code complies with the project's standards in `standards/` — edit `standards/my_coding_standards.md` for project-wide rules and the language-specific files for framework rules.
+3. **Verify Changes:** Start the app locally (`python3 app.py`) and exercise the affected feature through the UI before submitting.
+4. **Submit a Pull Request:** Describe the intent of your changes, what you tested, and any config changes required.
 
 ---
 

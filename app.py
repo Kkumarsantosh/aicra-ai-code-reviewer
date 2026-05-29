@@ -11,6 +11,7 @@ from werkzeug.security import check_password_hash
 from config import Config
 from engine import db
 from engine.git_manager import GitManager
+from engine.jira_client import JiraClient
 from engine.review_runner import ReviewRunner
 from engine.roi_auditor import ROIAuditor
 from engine.fds_analyzer import FDSAnalyzer
@@ -22,6 +23,7 @@ git = GitManager()
 runner = ReviewRunner()
 roi_engine = ROIAuditor()
 fds_engine = FDSAnalyzer()
+jira_client = JiraClient()
 
 def login_required(f):
     @wraps(f)
@@ -195,10 +197,11 @@ def list_reviews():
             LIMIT %s OFFSET %s
         """, (per_page, offset))
         
-        return render_template('reviews_list.html', 
-                             reviews=reviews, 
-                             page=page, 
+        return render_template('reviews_list.html',
+                             reviews=reviews,
+                             page=page,
                              total_pages=total_pages,
+                             ai_model=Config.AI_POWERFUL_MODEL.upper().replace('-', '_').replace('.', '_'),
                              active_page='reviews')
     except Exception as e: return f"Error: {e}", 500
 
@@ -229,18 +232,16 @@ def repo_detail(repo_id):
         total_count = db.execute("SELECT COUNT(*) as count FROM reviews WHERE repo_id = %s", (repo_id,))[0]['count']
         total_pages = (total_count + per_page - 1) // per_page
         
-        branches = git.get_branches(repo_id)
         reviews = db.execute("""
-            SELECT * FROM reviews 
-            WHERE repo_id = %s 
-            ORDER BY created_at DESC 
+            SELECT * FROM reviews
+            WHERE repo_id = %s
+            ORDER BY created_at DESC
             LIMIT %s OFFSET %s
         """, (repo_id, per_page, offset))
-        
-        return render_template('repo_detail.html', 
-                             repo=repo, 
-                             branches=branches, 
-                             reviews=reviews, 
+
+        return render_template('repo_detail.html',
+                             repo=repo,
+                             reviews=reviews,
                              page=page,
                              total_pages=total_pages,
                              active_page='repos')
@@ -424,7 +425,8 @@ def roi_dismiss_risk():
     reason = request.form.get('reason')
     
     if repo_id and risk_hash and reason:
-        roi_engine.dismiss_risk(repo_id, risk_hash, current_user.username, reason)
+        username = session.get('user', {}).get('username', 'unknown')
+        roi_engine.dismiss_risk(repo_id, risk_hash, username, reason)
     
     return redirect(url_for('view_roi', analysis_id=analysis_id))
 
@@ -438,12 +440,12 @@ def roi_override():
     analysis_id = request.form.get('analysis_id')
     
     if repo_id and unit_name and tier:
-        # Use a transaction-safe insert or update
+        username = session.get('user', {}).get('username', 'unknown')
         db.execute("""
             INSERT INTO roi_unit_overrides (repo_id, unit_name, tier, reason, overridden_by)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE tier = VALUES(tier), reason = VALUES(reason), overridden_by = VALUES(overridden_by)
-        """, (repo_id, unit_name, tier, reason, current_user.username))
+        """, (repo_id, unit_name, tier, reason, username))
         
     return redirect(url_for('view_roi', analysis_id=analysis_id))
 
@@ -464,21 +466,21 @@ def unlinked_work():
 @app.route('/dashboard/delivery')
 @login_required
 def delivery_dashboard():
-    project_key = request.args.get('project', 'APPMBHK') # Default or from settings
+    project_key = request.args.get('project', Config.JIRA_DEFAULT_PROJECT) # Default or from settings
     metrics = jira_client.get_delivery_metrics(project_key)
     return render_template('delivery_dashboard.html', metrics=metrics, project_key=project_key, active_page='dashboard')
 
 @app.route('/dashboard/quality')
 @login_required
 def quality_dashboard():
-    project_key = request.args.get('project', 'APPMBHK')
+    project_key = request.args.get('project', Config.JIRA_DEFAULT_PROJECT)
     trends = jira_client.get_quality_trends(project_key)
     return render_template('quality_dashboard.html', trends=trends, project_key=project_key, active_page='dashboard')
 
 @app.route('/dashboard/alignment')
 @login_required
 def alignment_dashboard():
-    project_key = request.args.get('project', 'APPMBHK')
+    project_key = request.args.get('project', Config.JIRA_DEFAULT_PROJECT)
     objectives = jira_client.get_business_alignment(project_key)
     return render_template('alignment_dashboard.html', objectives=objectives, project_key=project_key, active_page='dashboard')
 
@@ -487,6 +489,7 @@ def alignment_dashboard():
 def app_settings(): return render_template('settings.html', config_obj=Config, active_page='settings')
 
 @app.route('/reports/<path:filename>')
+@login_required
 def serve_report(filename): return send_from_directory(Config.REPORTS_DIR, filename)
 
 # ── FDS GAP ANALYSIS ──
@@ -572,14 +575,17 @@ def new_fds():
         return "Title and either PDF or raw content are required", 400
         
     fds_id = db.insert("INSERT INTO fds_documents (repo_id, title, content) VALUES (%s, %s, %s)", (repo_id, title, content))
-    
-    # Trigger parsing
-    try:
-        # Since this is a new FDS, we don't have a gap analysis ID yet
-        req_count = fds_engine.parse_fds_document(fds_id, content)
-    except Exception as e:
-        return f"Error parsing FDS: {e}", 500
-        
+
+    # Parse asynchronously so the user is not left waiting on AI calls
+    def _parse_in_background(doc_id, doc_content):
+        try:
+            fds_engine.parse_fds_document(doc_id, doc_content)
+        except Exception as exc:
+            print(f"[FDS] Background parsing failed for doc {doc_id}: {exc}")
+
+    t = threading.Thread(target=_parse_in_background, args=(fds_id, content), daemon=True)
+    t.start()
+
     return redirect(url_for('view_fds', fds_id=fds_id))
 
 @app.route('/fds/<int:fds_id>')
@@ -591,15 +597,8 @@ def view_fds(fds_id):
     reqs = db.execute("SELECT * FROM fds_requirements WHERE fds_id = %s", (fds_id,))
     sections = db.execute("SELECT * FROM fds_structural_index WHERE fds_id = %s ORDER BY page_start", (fds_id,))
     analyses = db.execute("SELECT * FROM fds_gap_analyses WHERE fds_id = %s ORDER BY created_at DESC", (fds_id,))
-    
-    # If the document is linked to a repo, get its branches for the gap analysis dropdown
-    branches = []
-    if doc[0]['repo_id']:
-        try:
-            branches = git.get_branches(doc[0]['repo_id'])
-        except: pass
-        
-    return render_template('fds_detail.html', doc=doc[0], reqs=reqs, sections=sections, analyses=analyses, branches=branches, active_page='fds')
+
+    return render_template('fds_detail.html', doc=doc[0], reqs=reqs, sections=sections, analyses=analyses, active_page='fds')
 
 @app.route('/fds/<int:fds_id>/requirement/new', methods=['POST'])
 @login_required
@@ -691,6 +690,12 @@ def fds_analysis_progress(analysis_id):
         
     return render_template('fds_progress.html', analysis=analysis[0], active_page='fds')
 
+@app.route('/fds/<int:fds_id>/requirements_count')
+@login_required
+def fds_requirements_count(fds_id):
+    row = db.execute("SELECT COUNT(*) as cnt FROM fds_requirements WHERE fds_id = %s", (fds_id,))
+    return jsonify({"count": row[0]['cnt'] if row else 0})
+
 @app.route('/fds/analysis/<int:analysis_id>/logs')
 @login_required
 def fds_analysis_logs(analysis_id):
@@ -716,11 +721,14 @@ def view_gap_analysis(analysis_id):
     """, (analysis_id,))
     if not analysis: return "Not found", 404
     
-    if analysis[0]['status'] == 'pending' or analysis[0]['status'] == 'analyzing':
+    if analysis[0]['status'] in ('pending', 'analyzing', 'failed'):
         return redirect(url_for('fds_analysis_progress', analysis_id=analysis_id))
     
     import json
-    data = json.loads(analysis[0]['analysis_data']) if analysis[0]['analysis_data'] else {}
+    try:
+        data = json.loads(analysis[0]['analysis_data']) if analysis[0]['analysis_data'] else {}
+    except (json.JSONDecodeError, TypeError):
+        data = {}
     
     # Fetch granular verifications if they exist
     verifications = db.execute("SELECT * FROM fds_requirement_verifications WHERE analysis_id = %s", (analysis_id,))

@@ -327,7 +327,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <form action="/fds/new" method="POST" enctype="multipart/form-data" class="heavy-op">
+            <form action="/fds/new" method="POST" enctype="multipart/form-data" id="fds-upload-form">
                 <div class="form-group">
                     <label class="form-label">Document Title</label>
                     <input type="text" name="title" class="input-field" placeholder="e.g. Authentication Service v1.2" required>
@@ -355,9 +355,12 @@
                 </div>
 
                 <div style="margin-top: 40px;">
-                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 16px; font-size: 0.9rem; border-radius: 12px;">
+                    <button type="submit" id="fds-submit-btn" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 16px; font-size: 0.9rem; border-radius: 12px;">
                         <i class="fas fa-microscope"></i> Initialize Specification Ingestion
                     </button>
+                    <p id="fds-upload-hint" style="display:none; text-align:center; margin-top:14px; font-size:0.8rem; color:var(--text-muted); font-weight:600;">
+                        <i class="fas fa-circle-notch fa-spin"></i>&nbsp; Uploading document&hellip; you will be redirected in a moment.
+                    </p>
                 </div>
             </form>
         </div>
@@ -476,5 +479,13 @@
         if (event.target == fdsModal) toggleModal(false);
         if (event.target == deleteModal) closeDeleteModal();
     }
+
+    document.getElementById('fds-upload-form').addEventListener('submit', function() {
+        const btn = document.getElementById('fds-submit-btn');
+        const hint = document.getElementById('fds-upload-hint');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
+        hint.style.display = 'block';
+    });
 </script>
 {% endblock %}

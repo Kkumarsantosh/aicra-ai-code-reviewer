@@ -1,30 +1,50 @@
-# Environments
-.venv/
-env/
-venv/
-ENV/
-
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# OS
-.DS_Store
-Thumbs.db
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
 
-# Database & Environment Secrets
-aicra.db
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
 config/.env
 .env
+*.pem
+*.key
 
-# Project Specific
+# ── OS artefacts ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE / editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── AICRA runtime directories ────────────────────────────────────────────────
+# Generated at runtime — do not commit
 workspace/
-reports/gemini_raw_*
-reports/gemini_review_*
-reports/review_*
-reports/sonar_filtered_*
-reports/sonar_report.json
-sonar_report.json
-# Large Binaries
-sonar-scanner-*/
+reports/
+
+# ── Large bundled binaries ────────────────────────────────────────────────────
+# Download these locally; see README for setup instructions
+lib/sonar-scanner-*/
+lib/git-sizer-*/
+lib/*.jar
+
+# ── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
+.temp_context.txt
+
+# ── Legacy SQLite (replaced by MySQL) ────────────────────────────────────────
+aicra.db

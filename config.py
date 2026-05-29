@@ -8,8 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), 'config', '.env'))
 
-
 class Config:
+    _GEMINI_FAST     = "gemini-2.0-flash"
+    _GEMINI_POWERFUL = "gemini-2.5-pro-preview"
+
     # ── App ──
     APP_NAME = "AICRA"
     HOST = "0.0.0.0"
@@ -21,7 +23,7 @@ class Config:
     MYSQL_HOST = os.getenv("MYSQL_HOST", "127.0.0.1")
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
     MYSQL_USER = os.getenv("MYSQL_USER", "root")
-    MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "password")
+    MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
     MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "ai_code_review")
     
     # ── GitHub ──
@@ -30,17 +32,66 @@ class Config:
     GITHUB_ORG = os.getenv("GITHUB_ORG", "")  # If repos are under an org
     
     # ── SonarQube ──
-    SONAR_HOST = os.getenv("SONAR_HOST", "http://10.32.83.180:9002")
+    SONAR_HOST = os.getenv("SONAR_HOST", "http://localhost:9000")
     SONAR_TOKEN = os.getenv("SONAR_TOKEN", "")
     SONAR_SCANNER_PATH = os.getenv("SCANNER_PATH", "")
     SONAR_JAVA_HOME = os.getenv("SONAR_JAVA_HOME", "/opt/homebrew/opt/openjdk@17")
     
-    # ── Gemini ──
-    GEMINI_CLI_BIN = os.getenv("GEMINI_CLI_BIN", "gemini")
+    # ── AI Provider (unified) ──
+    # Choose: openai | anthropic | gemini | gemini_cli
+    AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini_cli")
+
+    # ── OpenAI ──
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_FAST_MODEL = os.getenv("OPENAI_FAST_MODEL", "gpt-4o-mini")
+    OPENAI_POWERFUL_MODEL = os.getenv("OPENAI_POWERFUL_MODEL", "gpt-4o")
+
+    # ── Anthropic Claude ──
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_FAST_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5-20251001")
+    ANTHROPIC_POWERFUL_MODEL = os.getenv("ANTHROPIC_POWERFUL_MODEL", "claude-sonnet-4-6")
+
+    # ── Google Gemini (Python SDK, AI_PROVIDER=gemini) ──
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_DEFAULT_MODEL = "flash"
-    GEMINI_LARGE_MODEL = "pro"
-    GEMINI_LOW_TEMP = 0.1
+
+    # ── Gemini CLI (AI_PROVIDER=gemini_cli) ──
+    GEMINI_CLI_BIN = os.getenv("GEMINI_CLI_BIN", "gemini")
+
+    # ── Temperature ────────────────────────────────────────────────────────────
+    # AI_TEMPERATURE      — analytical tasks: code review, classification, risk scoring
+    # AI_TEMPERATURE_JSON — structured-output tasks: document parsing, JSON grouping
+    # Industry standard for code analysis: 0.1–0.2.  Creative writing: 0.7–1.0.
+    AI_TEMPERATURE      = float(os.getenv("AI_TEMPERATURE",      "0.2"))
+    AI_TEMPERATURE_JSON = float(os.getenv("AI_TEMPERATURE_JSON", "0.1"))
+
+    # ── Custom AI base URL (Azure OpenAI, Ollama, LiteLLM proxy, etc.) ──
+    AI_BASE_URL = os.getenv("AI_BASE_URL", "")
+
+    # ── Custom AI Bridge (AI_PROVIDER=custom) ──
+    CUSTOM_AI_URL      = os.getenv("CUSTOM_AI_URL", "")
+    CUSTOM_AI_USER     = os.getenv("CUSTOM_AI_USER", "")
+    CUSTOM_AI_PASSWORD = os.getenv("CUSTOM_AI_PASSWORD", "")
+
+    # ── Resolved model tiers — auto-selected from AI_PROVIDER ──
+    _FAST_MODELS = {
+        "openai":     os.getenv("OPENAI_FAST_MODEL",    "gpt-4o-mini"),
+        "anthropic":  os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5-20251001"),
+        "gemini":     _GEMINI_FAST,
+        "vertexai":   _GEMINI_FAST,
+        "gemini_cli": _GEMINI_FAST,
+        "custom":     "custom",
+    }
+    _POWERFUL_MODELS = {
+        "openai":     os.getenv("OPENAI_POWERFUL_MODEL",    "gpt-4o"),
+        "anthropic":  os.getenv("ANTHROPIC_POWERFUL_MODEL", "claude-sonnet-4-6"),
+        "gemini":     _GEMINI_POWERFUL,
+        "vertexai":   _GEMINI_POWERFUL,
+        "gemini_cli": _GEMINI_POWERFUL,
+        "custom":     "custom",
+    }
+    AI_FAST_MODEL     = _FAST_MODELS.get(AI_PROVIDER,     _FAST_MODELS["openai"])
+    AI_POWERFUL_MODEL = _POWERFUL_MODELS.get(AI_PROVIDER, _POWERFUL_MODELS["openai"])
+
     MAX_ISSUES_FOR_AI = int(os.getenv("MAX_ISSUES_FOR_AI", "60"))
     
     # ── Risk Detection ──
@@ -52,6 +103,7 @@ class Config:
     JIRA_EMAIL = os.getenv("JIRA_EMAIL", "")
     JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")
     JIRA_DEFAULT_ENVIRONMENT = os.getenv("JIRA_DEFAULT_ENVIRONMENT", "UAT")
+    JIRA_DEFAULT_PROJECT = os.getenv("JIRA_DEFAULT_PROJECT", "")
     
     # ── Jira Delivery Metrics Configuration ──
     JIRA_COMPLETED_STATUSES = os.getenv("JIRA_COMPLETED_STATUSES", "Done,Closed,Released,Resolved").split(",")
@@ -67,5 +119,5 @@ class Config:
     WORKSPACE_DIR = os.path.join(BASE_DIR, "workspace")
     REPORTS_DIR = os.path.join(BASE_DIR, "reports")
     PROMPT_FILE = os.path.join(BASE_DIR, "engine", "prompt.txt")
-    STANDARDS_DIR = os.path.join(BASE_DIR, "scripts", "standards")
-    STANDARDS_FILE = os.path.join(BASE_DIR, "scripts", "my_coding_standards.md")
+    STANDARDS_DIR = os.path.join(BASE_DIR, "standards")
+    STANDARDS_FILE = os.path.join(BASE_DIR, "standards", "my_coding_standards.md")

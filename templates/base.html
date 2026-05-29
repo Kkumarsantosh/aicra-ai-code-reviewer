@@ -20,12 +20,12 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/" class="logo-container">
-                <div class="logo-icon">
-                    <i class="fas fa-microchip"></i>
-                </div>
-                <div class="logo-text desktop-only">AICRA<span>.</span></div>
+                <img src="{{ url_for('static', filename='aicra_icon.png') }}"
+                     alt="AICRA" style="height:38px;width:auto;flex-shrink:0;">
+                <img src="{{ url_for('static', filename='aicra_text.png') }}"
+                     alt="AICRA" class="logo-text" style="height:30px;width:auto;flex-shrink:0;">
             </a>
-            <div class="sidebar-subtext desktop-only">Intelligence Engine</div>
+            <div class="sidebar-subtext desktop-only">Developer Intelligence | Automated Compliance</div>
         </div>
 
         <div class="nav-section">
@@ -137,10 +137,15 @@
     <!-- Global Loading Overlay (Reserved for Heavy Operations ONLY) -->
     <div id="global-loader" class="loader-overlay">
         <div class="loader-content">
-            <div class="loader-logo">
-                <i class="fas fa-microchip"></i>
+            <div class="loader-logo" style="background:transparent;box-shadow:none;width:auto;height:auto;border-radius:0;">
+                <img src="{{ url_for('static', filename='aicra_icon.png') }}"
+                     alt="AICRA" style="height:72px;width:auto;">
             </div>
-            <div class="loader-text" id="loader-text">Initializing Neural Engine...</div>
+            <div style="margin-bottom:20px;">
+                <img src="{{ url_for('static', filename='aicra_text.png') }}"
+                     alt="AICRA" style="height:28px;width:auto;">
+            </div>
+            <div class="loader-text" id="loader-text">Developer Intelligence | Automated Compliance</div>
             <div class="loader-progress-container">
                 <div class="loader-progress-bar" id="loader-progress-bar"></div>
             </div>

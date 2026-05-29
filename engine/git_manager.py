@@ -7,9 +7,14 @@ import subprocess
 import os
 import shutil
 import json
+import time
+import threading
 from datetime import datetime, timedelta
 from config import Config
 from engine import db
+
+_branches_cache: dict = {}   # {repo_id: (branch_list, fetched_at)}
+_BRANCHES_TTL = 300          # seconds before re-fetching from GitHub
 
 
 class GitManager:
@@ -119,58 +124,114 @@ class GitManager:
         return rows[0] if rows else None
 
     def get_branches(self, repo_id):
+        now = time.time()
+        entry = _branches_cache.get(repo_id)
+        if entry and (now - entry[1]) < _BRANCHES_TTL:
+            return entry[0]
+
+        result = self._fetch_branches(repo_id)
+        if isinstance(result, list):
+            _branches_cache[repo_id] = (result, now)
+        return result
+
+    def _fetch_branches(self, repo_id):
         repo = self.get_repo(repo_id)
-        if not repo: return {"error": "Repository not found in local index"}
-        
-        default_branch_name = repo.get('default_branch', 'main')
+        if not repo:
+            return {"error": "Repository not found in local index"}
+
+        default_branch = repo.get('default_branch', 'main')
         meta_dir = os.path.join(Config.WORKSPACE_DIR, f"meta_repo_{repo_id}")
-        clone_url = repo['clone_url'].replace('https://github.com', f'https://{self.token}@github.com') if self.token else repo['clone_url']
+        clone_url = (
+            repo['clone_url'].replace('https://github.com', f'https://{self.token}@github.com')
+            if self.token else repo['clone_url']
+        )
 
-        branches = []
+        # Fast path: local bare-clone already exists — sorted by committer date, no network call
+        if os.path.exists(meta_dir):
+            local = self._read_local_branches(meta_dir, default_branch)
+            if local:
+                # Refresh in background so the next TTL cycle has up-to-date ordering
+                threading.Thread(
+                    target=self._background_sync, args=(meta_dir, clone_url), daemon=True
+                ).start()
+                return self._top20_with_default(local, default_branch)
+
+        # Cold start: no local clone yet — use GitHub API (fast, alphabetical)
         try:
-            # 1. Sync Metadata (Bare clone maps remote heads to local heads)
-            if not os.path.exists(meta_dir):
-                os.makedirs(meta_dir, exist_ok=True)
-                subprocess.run(['git', 'clone', '--bare', '--depth', '1', '--no-single-branch', '--filter=blob:none', clone_url, '.'], 
-                               cwd=meta_dir, capture_output=True)
-            else:
-                subprocess.run(['git', 'fetch', '--depth', '1', 'origin', '*:*'], cwd=meta_dir, capture_output=True)
+            branches = self._fetch_branches_from_api(repo['full_name'], default_branch)
+            if branches:
+                # Sync in background so the next page load serves sorted results
+                threading.Thread(
+                    target=self._background_sync, args=(meta_dir, clone_url), daemon=True
+                ).start()
+                return self._top20_with_default(branches, default_branch)
+        except Exception:
+            pass
 
-            # 2. Extract branches sorted by committer date
-            # In a bare clone, we look directly at refs/heads/
-            cmd = ['git', 'for-each-ref', '--sort=-committerdate', 'refs/heads/', '--format=%(refname:short)']
-            res = subprocess.run(cmd, cwd=meta_dir, capture_output=True, text=True)
-            
-            if res.returncode == 0:
-                raw_list = res.stdout.strip().split('\n')
-                for b_name in raw_list:
-                    if not b_name or b_name == 'HEAD': continue
-                    branches.append({
-                        'name': b_name,
-                        'is_default': b_name == default_branch_name
-                    })
+        # Last resort: blocking sync (network required but local clone absent)
+        try:
+            self._sync_meta_repo(meta_dir, clone_url)
+            branches = self._read_local_branches(meta_dir, default_branch)
+            if branches:
+                return self._top20_with_default(branches, default_branch)
+        except Exception:
+            pass
 
-            # 3. Robust Fallback: If git command fails or is empty, use API
-            if not branches:
-                resp = requests.get(f"{self.api_url}/repos/{repo['full_name']}/branches", 
-                                    headers=self.headers, params={'per_page': 30}, timeout=10)
-                if resp.status_code == 200:
-                    for b in resp.json():
-                        branches.append({
-                            'name': b['name'],
-                            'is_default': b['name'] == default_branch_name
-                        })
+        return {"error": "Could not retrieve branches from GitHub API or local git"}
 
-            # Ensure default is always in the selection pool
-            top_20 = branches[:20]
-            if not any(b['is_default'] for b in top_20):
-                default_ref = next((b for b in branches if b['is_default']), None)
-                if default_ref: top_20 = [default_ref] + branches[:19]
-            
-            return top_20
+    def _background_sync(self, meta_dir, clone_url):
+        """Refresh the bare clone in a daemon thread — never blocks the request."""
+        try:
+            self._sync_meta_repo(meta_dir, clone_url)
+        except Exception:
+            pass
 
-        except Exception as e:
-            return {"error": str(e)}
+    def _sync_meta_repo(self, meta_dir, clone_url):
+        if not os.path.exists(meta_dir):
+            os.makedirs(meta_dir, exist_ok=True)
+            subprocess.run(
+                ['git', 'clone', '--bare', '--depth', '1', '--no-single-branch', '--filter=blob:none', clone_url, '.'],
+                cwd=meta_dir, capture_output=True, timeout=60,
+            )
+        else:
+            try:
+                subprocess.run(
+                    ['git', 'fetch', '--depth', '1', 'origin', '*:*'],
+                    cwd=meta_dir, capture_output=True, timeout=30,
+                )
+            except subprocess.TimeoutExpired:
+                pass  # stale cache acceptable; API fallback runs if local refs are empty
+
+    def _read_local_branches(self, meta_dir, default_branch):
+        res = subprocess.run(
+            ['git', 'for-each-ref', '--sort=-committerdate', 'refs/heads/', '--format=%(refname:short)'],
+            cwd=meta_dir, capture_output=True, text=True, timeout=10,
+        )
+        if res.returncode != 0:
+            return []
+        return [
+            {'name': b, 'is_default': b == default_branch}
+            for b in res.stdout.strip().split('\n')
+            if b and b != 'HEAD'
+        ]
+
+    def _fetch_branches_from_api(self, full_name, default_branch):
+        resp = requests.get(
+            f"{self.api_url}/repos/{full_name}/branches",
+            headers=self.headers, params={'per_page': 30}, timeout=10,
+        )
+        if resp.status_code != 200:
+            return []
+        return [{'name': b['name'], 'is_default': b['name'] == default_branch} for b in resp.json()]
+
+    @staticmethod
+    def _top20_with_default(branches, default_branch):
+        top_20 = branches[:20]
+        if not any(b['is_default'] for b in top_20):
+            default_ref = next((b for b in branches if b['is_default']), None)
+            if default_ref:
+                top_20 = [default_ref] + branches[:19]
+        return top_20
 
     def clone_repo(self, repo_id, branch, work_dir, log_callback=None):
         repo = self.get_repo(repo_id)

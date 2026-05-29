@@ -498,6 +498,16 @@
         </div>
     </header>
 
+    {% if not reqs %}
+    <div id="parsing-banner" style="display:flex; align-items:center; gap:14px; background:white; border:1px solid var(--border); border-left:4px solid var(--accent-primary); border-radius:12px; padding:16px 20px; margin-bottom:24px; box-shadow:var(--shadow-sm);">
+        <i class="fas fa-circle-notch fa-spin" style="font-size:1.25rem; color:var(--accent-primary); flex-shrink:0;"></i>
+        <div>
+            <div style="font-weight:700; font-size:0.9rem; color:var(--text-main);">AI is extracting requirements&hellip;</div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">This page will refresh automatically once the vectors are ready. Large documents may take 1–2 minutes.</div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="detail-grid">
         <div class="feed-container">
             <div class="req-section-header">
@@ -532,11 +542,11 @@
                 <div class="section-title" style="margin-bottom: 20px;"><i class="fas fa-play-circle text-accent"></i> Intel Scan</div>
                 {% if doc.repo_id %}
                 <form action="/fds/{{ doc.id }}/analyze" method="POST" class="heavy-op">
-                    <select name="branch" class="input-custom" style="width: 100%; margin-bottom: 20px; padding: 12px; border-radius: 10px;">
-                        {% if branches and branches is iterable and branches is not mapping %}
-                            {% for b in branches %}<option value="{{ b.name if b.name else b }}">{{ b.name if b.name else b }}</option>{% endfor %}
-                        {% else %}<option value="main">main</option>{% endif %}
+                    <select name="branch" id="fds-branch-select" class="input-custom" style="width: 100%; margin-bottom: 4px; padding: 12px; border-radius: 10px;" disabled>
+                        <option value="">Loading branches…</option>
                     </select>
+                    <div id="fds-branch-error" style="display:none; font-size:0.7rem; color:var(--accent-error); margin-bottom:14px; font-weight:600;"></div>
+                    <div style="margin-bottom:20px;"></div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; height: 48px; border-radius: 14px;">
                         <i class="fas fa-microscope"></i> Initialize Scan
                     </button>
@@ -793,5 +803,65 @@
 
     window.onclick = (e) => { if (e.target.classList.contains('modal-overlay')) { closeAddReqModal(); closeDeleteModal(); } }
     document.addEventListener('DOMContentLoaded', renderFeed);
+
+    // Load branches async — avoids blocking git fetch on page render
+    {% if doc.repo_id %}
+    (function() {
+        const repoId = {{ doc.repo_id }};
+        const sel = document.getElementById('fds-branch-select');
+        const err = document.getElementById('fds-branch-error');
+
+        function showFallback(msg) {
+            sel.innerHTML = '<option value="main">main</option>';
+            sel.disabled = false;
+            err.textContent = msg;
+            err.style.display = 'block';
+        }
+
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 20000); // 20s browser timeout
+
+        fetch(`/repo/${repoId}/branches`, { signal: ctrl.signal })
+            .then(r => r.json())
+            .then(data => {
+                clearTimeout(timer);
+                if (data.error) {
+                    showFallback('Branches unavailable — defaulting to main. (' + data.error + ')');
+                    return;
+                }
+                sel.innerHTML = '';
+                data.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.name;
+                    opt.textContent = b.name;
+                    if (b.is_default) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+                sel.disabled = false;
+            })
+            .catch(() => {
+                clearTimeout(timer);
+                showFallback('Branch list unavailable — defaulting to main.');
+            });
+    })();
+    {% endif %}
+
+    // Auto-refresh while AI is parsing requirements in the background
+    {% if not reqs %}
+    (function() {
+        const fdsId = {{ doc.id }};
+        const timer = setInterval(function() {
+            fetch(`/fds/${fdsId}/requirements_count`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.count > 0) {
+                        clearInterval(timer);
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {}); // silently ignore network errors
+        }, 4000);
+    })();
+    {% endif %}
 </script>
 {% endblock %}

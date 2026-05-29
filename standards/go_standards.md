@@ -363,7 +363,7 @@ import (
 
     "github.com/jackc/pgx/v5"
 
-    "github.com/moneyback/api/internal/payment"
+    "github.com/your-org/your-app/internal/payment"
 )
 
 VIOLATIONS:

@@ -474,11 +474,13 @@
                     <div className="border-beam"></div>
                     <div style={{ position: 'relative', zIndex: 2 }}>
                         <div style={{ marginBottom: '40px' }}>
-                            <div className="logo-container" style={{ marginBottom: '32px' }}>
-                                <div className="logo-icon" style={{ background: 'var(--accent-primary)', color: 'white' }}>
-                                    <i className="fas fa-microchip"></i>
-                                </div>
-                                <div className="logo-text">AICRA<span>.</span></div>
+                            <div style={{ marginBottom: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                                <img src="/static/aicra_icon.png"
+                                     alt="AICRA"
+                                     style={{ height: '64px', width: 'auto' }} />
+                                <img src="/static/aicra_text.png"
+                                     alt="AICRA"
+                                     style={{ height: '28px', width: 'auto' }} />
                             </div>
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0' }}>Security Gateway</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Authorized credentials required for access.</p>

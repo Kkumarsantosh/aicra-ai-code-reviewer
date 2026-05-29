@@ -19,6 +19,7 @@ import google.generativeai as genai
 
 from config import Config
 from engine import db
+from engine.ai_provider import AIProvider
 from engine.git_manager import GitManager
 
 
@@ -61,7 +62,8 @@ class ReviewRunner:
     
     def __init__(self):
         self.git = GitManager()
-        self.gemini_breaker = CircuitBreaker("GeminiAPI")
+        self.ai = AIProvider()
+        self.ai_breaker = CircuitBreaker("AIProvider")
     
     def _safe_update_status(self, review_id, expected_status, new_status, version, message=''):
         """Optimistic locking update for status transitions."""
@@ -182,13 +184,14 @@ class ReviewRunner:
             # ── Complete ──
             total_duration = int(time.time() - start_time)
             
-            assessment = ai_result.get('assessment', {})
-            sonar_val = ai_result.get('sonarValidation', [])
-            findings = ai_result.get('logicalFindings', [])
-            
-            confirmed = len([v for v in sonar_val if v.get('verdict') == 'CONFIRMED'])
-            false_pos = len([v for v in sonar_val if v.get('verdict') == 'FALSE_POSITIVE'])
-            escalated = len([v for v in sonar_val if v.get('verdict') == 'ESCALATED'])
+            assessment     = ai_result.get('assessment', {})
+            sonar_val      = ai_result.get('sonarValidation', [])
+            findings       = ai_result.get('logicalFindings', [])
+            arch_findings  = ai_result.get('architecturalFindings', [])
+
+            confirmed  = len([v for v in sonar_val if v.get('verdict') == 'CONFIRMED'])
+            false_pos  = len([v for v in sonar_val if v.get('verdict') == 'FALSE_POSITIVE'])
+            escalated  = len([v for v in sonar_val if v.get('verdict') == 'ESCALATED'])
             total_real = confirmed + escalated + len(findings)
             
             summary_text = assessment.get('summary', '')
@@ -247,8 +250,10 @@ class ReviewRunner:
                 )
             )
             
+            arch_note = f", {len(arch_findings)} arch findings" if arch_findings else ""
             self._log(review_id, 'complete', 'completed',
-                     f"Review complete: {total_real} issues, {assessment.get('overallRisk','?')} risk, {total_duration}s total",
+                     f"Review complete: {total_real} issues{arch_note}, "
+                     f"{assessment.get('overallRisk','?')} risk, {total_duration}s total",
                      total_duration * 1000)
             
         except Exception as e:
@@ -329,14 +334,23 @@ class ReviewRunner:
         return self._run_gemini_review_v2(review_id, relevant_files, work_dir, repo=repo, sonar_findings=sonar_findings, project_structure=structure)
 
     def _detect_languages(self, files_affected: List[str]) -> List[str]:
-
-        """Maps file extensions to supported standard languages."""
+        """Detect programming languages from file extensions."""
         ext_map = {
-            '.go': 'go',
-            '.java': 'java',
-            '.js': 'javascript', '.ts': 'typescript', '.jsx': 'javascript', '.tsx': 'typescript',
-            '.php': 'php',
-            '.sql': 'sql'
+            '.py':    'Python',
+            '.go':    'Go',
+            '.java':  'Java',
+            '.js':    'JavaScript',  '.jsx': 'JavaScript',
+            '.ts':    'TypeScript',  '.tsx': 'TypeScript',
+            '.php':   'PHP',
+            '.rb':    'Ruby',
+            '.cs':    'C#',
+            '.cpp':   'C++',  '.cc': 'C++',  '.cxx': 'C++',
+            '.c':     'C',    '.h':  'C',
+            '.rs':    'Rust',
+            '.kt':    'Kotlin',  '.kts': 'Kotlin',
+            '.swift': 'Swift',
+            '.scala': 'Scala',
+            '.sql':   'SQL',
         }
         detected = set()
         for f in files_affected:
@@ -344,6 +358,17 @@ class ReviewRunner:
             if ext in ext_map:
                 detected.add(ext_map[ext])
         return list(detected)
+
+    @staticmethod
+    def _format_language_string(langs: List[str]) -> str:
+        """Format a list of languages into a readable string for prompt injection."""
+        if not langs:
+            return 'the detected language'
+        if len(langs) == 1:
+            return langs[0]
+        if len(langs) == 2:
+            return f"{langs[0]} and {langs[1]}"
+        return ", ".join(langs[:-1]) + f", and {langs[-1]}"
 
     def _get_dynamic_standards(self, detected_langs: List[str], files_affected: List[str]) -> str:
         """Assembles a hierarchical standards document with explicit precedence."""
@@ -403,7 +428,7 @@ class ReviewRunner:
             raise Exception(msg)
 
         self._log(review_id, 'gemini_context', 'started', 
-                 f"Context: {len(files_affected)} files, {detected_langs} languages detected.", 0)
+                 f"Context: {len(files_affected)} files, language: {self._format_language_string(detected_langs)}.", 0)
 
         if not project_structure:
             project_structure = self._get_project_structure(work_dir)
@@ -417,7 +442,7 @@ class ReviewRunner:
                 git_diff=f"{critical_source}\n\n--- UNIFIED DIFF OF CHANGES ---\n{full_diff}",
                 sonar_findings=sonar_findings or [],
                 project_structure=project_structure,
-                language=", ".join(detected_langs),
+                language=self._format_language_string(detected_langs),
                 coding_standards=standards_text
             )
         except ValueError as e:
@@ -429,7 +454,7 @@ class ReviewRunner:
                     git_diff=f"--- TRUNCATED DIFF ---\n{truncated_diff}",
                     sonar_findings=sonar_findings or [],
                     project_structure=project_structure,
-                    language=", ".join(detected_langs),
+                    language=self._format_language_string(detected_langs),
                     coding_standards=standards_text
                 )
             else: raise e
@@ -437,9 +462,31 @@ class ReviewRunner:
         self._log(review_id, 'gemini_audit', 'started', "Executing comprehensive neural audit with enhanced context...", 0)
 
         try:
-            # Phase 3: AI Execution with Retry Loop (Internal to _call_gemini_cli)
-            raw_response = self._call_gemini_cli(prompt, work_dir)
-            
+            # Phase 3: AI Execution with retry loop
+            raw_response = ""
+            use_large = len(prompt) > 20000
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    raw_response = self.ai_breaker.call(
+                        self.ai.complete, prompt,
+                        use_large_model=use_large,
+                        work_dir=work_dir
+                    )
+                    if not raw_response or len(raw_response.strip()) < 50:
+                        raise Exception("AI returned an empty or unusable response")
+                    break
+                except CircuitOpenError:
+                    raise
+                except Exception as exc:
+                    wait = (2 ** attempt) * 5
+                    self._log(review_id, 'ai_retry', 'started',
+                              f"AI attempt {attempt + 1}/{max_retries} failed: {str(exc)[:200]}. "
+                              f"Retrying in {wait}s...", 0)
+                    if attempt == max_retries - 1:
+                        raise
+                    time.sleep(wait)
+
             cleaned_response = self._clean_cli_output(raw_response)
             db.update("UPDATE reviews SET gemini_raw_output = %s WHERE id = %s", (raw_response, review_id))
             
@@ -461,12 +508,13 @@ class ReviewRunner:
                 parsed_result['assessment'] = assessment
 
             return {
-                "sonarValidation": validations, 
-                "logicalFindings": findings,
-                "suggestions": parsed_result.get('suggestions', []),
-                "assessment": assessment,
-                "riskPredictions": parsed_result.get('riskPredictions', {}),
-                "commitQuality": parsed_result.get('commitQuality', {"messageScore": 5, "standardsScore": 5, "documentationScore": 5})
+                "sonarValidation":       validations,
+                "logicalFindings":       findings,
+                "architecturalFindings": parsed_result.get('architecturalFindings', []),
+                "suggestions":           parsed_result.get('suggestions', []),
+                "assessment":            assessment,
+                "riskPredictions":       parsed_result.get('riskPredictions', {}),
+                "commitQuality":         parsed_result.get('commitQuality', {"messageScore": 5, "standardsScore": 5, "documentationScore": 5}),
             }
             
         except Exception as e:
@@ -475,10 +523,13 @@ class ReviewRunner:
 
     def _empty_ai_result(self):
         return {
-            "sonarValidation": [], "logicalFindings": [], "suggestions": [],
-            "assessment": {"overallRisk": "UNKNOWN", "recommendation": "ERROR"},
-            "riskPredictions": {"predictions": []},
-            "commitQuality": {"messageScore": 5, "standardsScore": 5, "documentationScore": 5}
+            "sonarValidation":       [],
+            "logicalFindings":       [],
+            "architecturalFindings": [],
+            "suggestions":           [],
+            "assessment":            {"overallRisk": "UNKNOWN", "recommendation": "ERROR"},
+            "riskPredictions":       {"predictions": []},
+            "commitQuality":         {"messageScore": 5, "standardsScore": 5, "documentationScore": 5},
         }
 
     def _get_unified_diff(self, work_dir, sonar_findings):
@@ -923,53 +974,6 @@ class ReviewRunner:
         db.update("""UPDATE reviews SET sonar_filtered_json = %s, sonar_filtered_issues = %s, sonar_bugs = %s, sonar_vulnerabilities = %s, sonar_code_smells = %s, sonar_blockers = %s, sonar_criticals = %s, sonar_majors = %s, files_affected = %s WHERE id = %s""", (json.dumps({'issues': slim}), len(slim), summary['bugs'], summary['vulnerabilities'], summary['code_smells'], summary['blockers'], summary['criticals'], summary['majors'], len(set(i['file'] for i in slim)), review_id))
         return {'issues': slim}
 
-    def _call_gemini_cli(self, prompt, work_dir):
-        """Call Gemini CLI with retry logic and exponential backoff."""
-        model_name = Config.GEMINI_LARGE_MODEL if len(prompt) > 20000 else Config.GEMINI_DEFAULT_MODEL
-        
-        env = os.environ.copy()
-        env["GOOGLE_CLOUD_PROJECT"] = "elab-code-assist"
-        env["GOOGLE_CLOUD_PROJECT_ID"] = "elab-code-assist"
-        
-        cmd = [
-            Config.GEMINI_CLI_BIN,
-            "--prompt", "Please execute the request above.",
-            "--model", model_name,
-            "--approval-mode", "plan",
-            "--sandbox"
-        ]
-        
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                process = subprocess.run(
-                    cmd, 
-                    input=prompt,
-                    capture_output=True, 
-                    text=True, 
-                    env=env, 
-                    cwd=work_dir, 
-                    timeout=600
-                )
-                
-                if process.returncode != 0:
-                    raise Exception(f"Gemini CLI failed (exit {process.returncode}): {process.stderr[:1000]}")
-                
-                response = process.stdout
-                if not response or len(response.strip()) < 50:
-                    raise Exception(f"Gemini returned empty response. Stderr: {process.stderr[:500]}")
-                    
-                return response
-                
-            except Exception as e:
-                wait_time = (2 ** attempt) * 5 # 5s, 10s, 20s
-                print(f"      [Gemini Retry] Attempt {attempt+1}/{max_retries} failed: {e}. Retrying in {wait_time}s...")
-                if attempt == max_retries - 1:
-                    raise e
-                time.sleep(wait_time)
-        
-        return ""
-
     def _store_findings(self, review_id, ai_result):
         """Store findings and suggestions in database with robust field mapping."""
         
@@ -1032,7 +1036,46 @@ class ReviewRunner:
                  f.get('standard', ''))
             )
 
-        # 3. Store Suggestions
+        # 3. Store Architectural Findings (Job 4)
+        arch_findings = ai_result.get('architecturalFindings', [])
+        for a in arch_findings:
+            pattern   = str(a.get('pattern', 'UNKNOWN')).upper()
+            sev       = self._normalize_severity(a.get('severity', 'MEDIUM'))
+            # Parse file:line from LOCATION field
+            location  = a.get('location', '')
+            file_path, line_num = '', 0
+            if ':' in location:
+                parts     = location.rsplit(':', 1)
+                file_path = parts[0]
+                try:
+                    line_num = int(parts[1])
+                except ValueError:
+                    line_num = 0
+            else:
+                file_path = location
+
+            db.insert(
+                """INSERT INTO findings
+                   (review_id, source, ai_verdict, title, category, severity, confidence,
+                    file_path, line_start, explanation, strategic_approach, remediation_plan)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (
+                    review_id,
+                    'arch_finding',
+                    pattern,
+                    f"{a.get('id', '')} — {pattern}",
+                    'ARCHITECTURE',
+                    sev,
+                    float(a.get('confidence', 0.7)),
+                    file_path,
+                    line_num,
+                    a.get('problem', ''),
+                    a.get('deepening_opportunity', ''),
+                    a.get('deletion_test', ''),
+                )
+            )
+
+        # 4. Store Suggestions
         suggestions = ai_result.get('suggestions', [])
         for s in suggestions:
             if s and str(s).strip():
@@ -1064,8 +1107,9 @@ class ReviewRunner:
         
         # Step 2: Try to extract content between markers
         first_marker = 'ASSESSMENT_START'
-        last_markers = ['---SUGGESTIONS_END---', '---RISK_PREDICTION_END---', 
-                        '---FINDING_END---', '---VALIDATION_END---', 'ASSESSMENT_END']
+        last_markers = ['---ARCH_END---', '---SUGGESTIONS_END---',
+                        '---RISK_PREDICTION_END---', '---FINDING_END---',
+                        '---VALIDATION_END---', 'ASSESSMENT_END']
         
         start_idx = cleaned.find(first_marker)
         if start_idx == -1:

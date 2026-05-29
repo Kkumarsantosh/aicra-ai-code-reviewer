@@ -129,13 +129,13 @@ a { text-decoration: none; color: inherit; transition: all 0.2s ease; }
 }
 
 .sidebar-subtext {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: var(--text-dim);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-top: 4px;
-    padding-left: 2px;
+    text-align: center;
 }
 
 .nav-section { margin-top: 16px; padding: 0 12px; }

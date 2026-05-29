@@ -31,8 +31,6 @@ export SONAR_FILTERED="${WORK_DIR}/sonar_report_filtered.json"
 export GEMINI_RAW="${WORK_DIR}/gemini_raw_output.txt"
 export GEMINI_JSON="${WORK_DIR}/gemini_review.json"
 REPORT_HTML="${REPORTS_DIR}/review_${TIMESTAMP}.html"
-export GOOGLE_CLOUD_PROJECT="elab-code-assist"
-export GOOGLE_CLOUD_PROJECT_ID="elab-code-assist"
 
 # ── SETUP ──
 mkdir -p "${REPORTS_DIR}" "${WORK_DIR}"
@@ -373,8 +371,8 @@ echo ""
 
 GEMINI_START=$(date +%s)
 
-PROMPT_FILE="${SCRIPT_DIR}/scripts/prompt.txt"
-STANDARDS_FILE="${SCRIPT_DIR}/scripts/my_coding_standards.md"
+PROMPT_FILE="${SCRIPT_DIR}/engine/prompt.txt"
+STANDARDS_FILE="${SCRIPT_DIR}/standards/my_coding_standards.md"
 
 if [ ! -f "${PROMPT_FILE}" ]; then
     echo "  ❌ Prompt not found: ${PROMPT_FILE}"
@@ -596,7 +594,7 @@ echo "════════════════════════�
 echo ""
 
 if [ -s "${GEMINI_RAW}" ]; then
-    python3 "${SCRIPT_DIR}/scripts/parse_gemini_output.py" \
+    python3 "${SCRIPT_DIR}/engine/parse_output.py" \
         "${GEMINI_RAW}" \
         "${GEMINI_JSON}"
 fi
@@ -667,7 +665,7 @@ echo "  📊 STEP 7: Generating HTML Report..."
 echo "═══════════════════════════════════════════════════════"
 echo ""
 
-python3 "${SCRIPT_DIR}/scripts/generate_dashboard.py" \
+python3 "${SCRIPT_DIR}/engine/report_builder.py" \
     "${SONAR_RAW}" \
     "${SONAR_FILTERED}" \
     "${GEMINI_JSON}" \

@@ -2,428 +2,548 @@
 
 {% block extra_css %}
 <style>
-    /* --- Professional High-Density Environment --- */
-    .neural-progress-container {
+    .fds-progress-wrapper {
         width: 100%;
-        max-width: 1200px; /* Standardized with other wide pages */
-        margin: 0 auto;
         animation: appleFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        padding: 0; /* Let .content-body handle the primary padding */
     }
 
-    /* --- THEME ALIGNED HEADER (Strict Standard) --- */
-    .node-context-strip { 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        margin-bottom: 32px; 
-        padding: 0 4px;
-    }
-    
-    .node-identity { display: flex; align-items: center; gap: 16px; }
-    
-    .node-icon-26 { 
-        width: 48px; 
-        height: 48px; 
-        border-radius: 12px; 
-        background: #0f172a; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        font-size: 1.25rem; 
-        color: #fff; 
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .node-title-section h1 {
-        font-size: 1.5rem; /* THEME STANDARD FOR H1 */
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        margin: 0;
-        color: var(--text-main);
-    }
-
-    .node-metadata-pills { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-    
-    .pill-26 { 
-        display: flex; 
-        align-items: center; 
-        gap: 8px; 
-        padding: 4px 14px; 
-        border-radius: 8px; 
-        background: #ffffff; 
-        border: 1px solid var(--border); 
-        font-size: 0.75rem; /* THEME STANDARD FOR META */
-        font-weight: 700; 
-        color: var(--text-muted); 
-    }
-    
-    .pill-26 i { font-size: 0.75rem; color: var(--accent-primary); }
-
-    .status-monitor { text-align: right; }
-    
-    .neural-link-label { 
-        font-size: 0.65rem; 
-        font-weight: 800; 
-        color: var(--text-dim); 
-        text-transform: uppercase; 
-        letter-spacing: 1.2px; 
-        margin-bottom: 4px; 
-    }
-
-    .live-status-pill {
+    /* ── Header Strip ── */
+    .node-context-strip {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 8px;
-        color: var(--accent-success);
-        font-weight: 800;
-        font-size: 0.875rem; /* THEME STANDARD FOR BODY */
-    }
-
-    .pulse-dot {
-        width: 8px;
-        height: 8px;
-        background: var(--accent-success);
-        border-radius: 50%;
-        box-shadow: 0 0 10px var(--accent-success);
-        animation: blink 1s infinite;
-    }
-
-    /* --- ACTIVE OPERATIONAL HUD --- */
-    .op-status-hub {
-        background: white;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 20px 24px;
-        display: flex;
-        align-items: center;
-        gap: 24px;
         margin-bottom: 32px;
-        box-shadow: var(--shadow-sm);
-        position: relative;
-        overflow: hidden;
+        padding: 0 12px;
     }
 
-    .op-status-hub::before {
-        content: '';
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 4px;
-        background: var(--accent-primary);
-    }
+    .node-identity { display: flex; align-items: center; gap: 16px; }
 
-    .op-visual-orb {
-        width: 48px;
-        height: 48px;
-        background: var(--bg-sidebar);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        color: var(--accent-primary);
-        border: 1px solid var(--border);
+    .node-icon-26 {
+        width: 48px; height: 48px; border-radius: 14px;
+        background: #0f172a;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; color: #fff;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
         flex-shrink: 0;
     }
 
-    .op-details h2 { margin: 0 0 4px 0; font-size: 1.125rem; font-weight: 800; color: var(--text-main); }
-    .op-details p { margin: 0; color: var(--text-muted); font-size: 0.875rem; font-weight: 500; } /* THEME STANDARD FOR BODY */
+    .node-metadata-pills { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 
-    /* --- SYNAPSE TRACK --- */
-    .synapse-track {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 48px;
-        padding: 0 10px;
-        position: relative;
+    .pill-26 {
+        display: flex; align-items: center; gap: 6px;
+        padding: 4px 12px; border-radius: 30px;
+        background: #ffffff; border: 1px solid var(--border);
+        font-size: 0.75rem; font-weight: 700; color: #64748b;
+        box-shadow: var(--shadow-sm);
+        white-space: nowrap;
     }
 
-    .synapse-node {
+    .pill-26 i { font-size: 0.7rem; color: var(--accent-primary); }
+
+    .pulse-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--accent-success);
+        box-shadow: 0 0 10px var(--accent-success);
+        animation: blink 1s infinite;
+        display: inline-block;
+    }
+
+    /* ── Two-column grid ── */
+    .progress-grid {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    /* ── Task Sidebar ── */
+    .task-sidebar {
+        background: rgba(255,255,255,0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        border-radius: 2rem;
+        padding: 24px;
         display: flex;
         flex-direction: column;
+        gap: 10px;
+        box-shadow: var(--shadow-md);
+        height: 600px;
+        overflow-y: auto;
+        position: sticky;
+        top: 24px;
+    }
+
+    .sidebar-label {
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        padding-left: 12px;
+    }
+
+    .task-item {
+        display: flex;
         align-items: center;
         gap: 12px;
-        position: relative;
-        z-index: 2;
-        width: 100px;
+        padding: 13px 16px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--text-muted);
+        transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+        background: rgba(255,255,255,0.5);
+        border: 1px solid var(--border);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        cursor: default;
     }
 
-    .node-orb {
-        width: 44px;
-        height: 44px;
-        background: white;
-        border: 2px solid var(--border);
-        border-radius: 50%;
+    .task-item i { font-size: 0.95rem; width: 22px; text-align: center; flex-shrink: 0; }
+
+    .task-item.pending { opacity: 0.35; }
+
+    .task-item.active {
+        background: rgba(150,137,232,0.08);
+        color: var(--accent-primary);
+        border-color: rgba(150,137,232,0.3);
+        box-shadow: 0 0 18px rgba(150,137,232,0.12);
+    }
+
+    .task-item.active i { color: var(--accent-primary); }
+
+    .task-item.complete {
+        color: var(--accent-success);
+        background: rgba(5,150,105,0.05);
+        border-color: rgba(5,150,105,0.2);
+    }
+
+    .task-item.complete i { color: var(--accent-success); }
+
+    .task-item.failed {
+        color: var(--accent-error);
+        background: rgba(220,38,38,0.05);
+        border-color: rgba(220,38,38,0.2);
+    }
+
+    .task-item.failed i { color: var(--accent-error); }
+
+    /* ── Terminal ── */
+    .terminal-wrapper { display: flex; flex-direction: column; gap: 24px; }
+
+    .terminal-window {
+        background: #000;
+        border-radius: 2rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
         display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        color: var(--text-dim);
-        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        flex-direction: column;
+        height: 600px;
     }
 
-    .node-label {
-        font-size: 0.75rem; /* THEME STANDARD FOR META */
-        font-weight: 700;
+    .terminal-header {
+        background: #1c1c1e;
+        padding: 14px 24px;
+        display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        flex-shrink: 0;
+    }
+
+    .mac-dots { display: flex; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+
+    .terminal-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: rgba(255,255,255,0.35);
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: var(--text-dim);
-        text-align: center;
     }
 
-    .node-connector {
+    #log-container {
         flex: 1;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        margin: 0 -10px;
-        margin-bottom: 28px;
-    }
-
-    .chevron-arrow {
-        width: 32px;
-        height: 6px;
-        background: var(--bg-deep);
-        clip-path: polygon(0% 20%, 75% 20%, 75% 0%, 100% 50%, 75% 100%, 75% 80%, 0% 80%);
-        transition: all 0.4s ease;
-        opacity: 0.4;
-    }
-
-    /* States */
-    .synapse-node.active .node-orb { border-color: var(--accent-primary); color: var(--accent-primary); box-shadow: 0 0 20px var(--accent-glow); transform: scale(1.1); }
-    .synapse-node.active .node-label { color: var(--accent-primary); }
-    .synapse-node.complete .node-orb { background: var(--accent-success); border-color: var(--accent-success); color: white; }
-    .synapse-node.complete .node-label { color: var(--accent-success); }
-
-    .node-connector.complete .chevron-arrow { background: var(--accent-success); opacity: 1; }
-    .node-connector.active .chevron-arrow { background: var(--accent-primary); opacity: 1; animation: arrowPulse 1.5s infinite; }
-
-    @keyframes arrowPulse { 0% { opacity: 0.4; transform: translateX(-3px); } 50% { opacity: 1; transform: translateX(0); } 100% { opacity: 0.4; transform: translateX(3px); } }
-
-    /* --- OBSERVABILITY CONSOLE --- */
-    .console-wrapper {
-        background: #000000;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #1a1a1a;
-        box-shadow: var(--shadow-lg);
-    }
-
-    .console-header {
-        padding: 12px 20px;
-        background: #0f0f0f;
-        border-bottom: 1px solid #1a1a1a;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .console-tag {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.7rem;
-        color: #52525b;
-        text-transform: uppercase;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .console-body {
-        height: 280px;
+        padding: 24px;
         overflow-y: auto;
-        padding: 20px 24px;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8125rem; /* LOG STANDARD */
-        line-height: 1.7;
+        font-size: 0.82rem;
+        line-height: 1.65;
         color: #a1a1aa;
     }
 
-    .log-row { display: flex; gap: 16px; margin-bottom: 6px; animation: slideIn 0.3s ease-out; }
-    .log-row .ts { color: #3f3f46; min-width: 80px; }
-    .log-row .step { color: var(--accent-primary); font-weight: 700; text-transform: uppercase; min-width: 110px; }
-    .log-row .msg { color: #e4e4e7; }
+    .log-row {
+        margin-bottom: 6px;
+        display: flex;
+        gap: 14px;
+        animation: slideIn 0.2s ease-out;
+    }
+
+    .log-ts { color: #3f3f46; font-size: 0.72rem; min-width: 78px; flex-shrink: 0; }
+    .log-tag { font-weight: 700; text-transform: uppercase; min-width: 120px; flex-shrink: 0; color: var(--accent-secondary); }
+    .log-text { color: #e4e4e7; word-break: break-word; }
+
+    #cursor {
+        display: inline-block;
+        width: 8px; height: 15px;
+        background: var(--accent-secondary);
+        animation: blink 1s step-end infinite;
+        vertical-align: middle;
+        margin-left: 4px;
+        box-shadow: 0 0 10px var(--accent-secondary);
+    }
+
+    #ai-progress-rail {
+        height: 3px;
+        background: rgba(255,255,255,0.05);
+        width: 100%;
+        display: none;
+        flex-shrink: 0;
+    }
+
+    #ai-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        width: 0%;
+        transition: width 0.5s ease;
+        box-shadow: 0 0 12px var(--accent-secondary);
+    }
+
+    .terminal-footer {
+        background: #1c1c1e;
+        padding: 8px 24px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.65rem;
+        font-family: 'JetBrains Mono', monospace;
+        color: #3f3f46;
+        flex-shrink: 0;
+    }
+
+    /* ── Complete CTA ── */
+    #complete-action { text-align: center; display: none; }
+
+    .btn-reveal {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 48px;
+        border-radius: 100px;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 800;
+        text-decoration: none;
+        box-shadow: 0 10px 30px rgba(150,137,232,0.3);
+        transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+        letter-spacing: 0.5px;
+    }
+
+    .btn-reveal:hover {
+        transform: translateY(-2px) scale(1.03);
+        box-shadow: 0 16px 40px rgba(150,137,232,0.4);
+        color: #fff;
+    }
 
     @keyframes appleFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+    @media (max-width: 1024px) {
+        .progress-grid { grid-template-columns: 1fr; }
+        .task-sidebar { display: none; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="neural-progress-container">
-    
-    <!-- THEME ALIGNED HEADER -->
+<div class="fds-progress-wrapper">
+
+    <!-- ── Header Strip ── -->
     <div class="node-context-strip">
         <div class="node-identity">
-            <div class="node-icon-26"><i class="fas fa-brain"></i></div>
-            <div class="node-title-section">
-                <h1>FDS Analysis Convergence</h1>
+            <div class="node-icon-26"><i class="fas fa-file-contract"></i></div>
+            <div>
+                <h1 style="font-size:1.2rem;font-weight:800;margin:0 0 6px;color:var(--text-main);">FDS Gap Analysis</h1>
                 <div class="node-metadata-pills">
-                    <div class="pill-26"><i class="fas fa-file-contract"></i> {{ analysis.fds_title }}</div>
+                    <div class="pill-26"><i class="fas fa-file-alt"></i> {{ analysis.fds_title }}</div>
                     <div class="pill-26"><i class="fas fa-code-branch"></i> {{ analysis.branch }}</div>
-                    <div class="pill-26"><i class="fas fa-bolt"></i> JOB: #{{ analysis.id }}</div>
+                    <div class="pill-26"><i class="fas fa-bolt"></i> JOB #{{ analysis.id }}</div>
+                    <div class="pill-26" id="timer-pill"><i class="far fa-clock"></i> 00:00</div>
                 </div>
             </div>
         </div>
-        <div class="status-monitor">
-            <div class="neural-link-label"><i class="fas fa-link"></i> Neural Link</div>
-            <div class="live-status-pill">
-                <div class="pulse-dot"></div> <span id="live-status-text">ACTIVE STREAM</span>
+        <div style="text-align:right;">
+            <div style="font-size:0.65rem;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Neural Link</div>
+            <div id="status-container" style="display:flex;align-items:center;gap:8px;color:var(--accent-success);font-weight:800;font-size:0.9rem;">
+                <div class="pulse-dot"></div>
+                <span id="status-pill-text">ACTIVE STREAM</span>
             </div>
         </div>
     </div>
 
-    <!-- ACTIVE STATUS HUB -->
-    <div class="op-status-hub" id="status-card">
-        <div class="op-visual-orb">
-            <i class="fas fa-circle-notch fa-spin" id="op-icon"></i>
+    <div class="progress-grid">
+
+        <!-- ── Task Sidebar ── -->
+        <aside class="task-sidebar">
+            <div class="sidebar-label">Analysis Pipeline</div>
+
+            <div id="task-INIT" class="task-item pending">
+                <i class="fas fa-power-off"></i> Initializing
+            </div>
+            <div id="task-EXTRACTION" class="task-item pending">
+                <i class="fas fa-dna"></i> Extracting Requirements
+            </div>
+            <div id="task-CLONING" class="task-item pending">
+                <i class="fas fa-cloud-download-alt"></i> Syncing Codebase
+            </div>
+            <div id="task-INDEXING" class="task-item pending">
+                <i class="fas fa-sitemap"></i> Building Code Index
+            </div>
+            <div id="task-MAPPING" class="task-item pending">
+                <i class="fas fa-project-diagram"></i> Mapping Requirements
+            </div>
+            <div id="task-VERIFYING" class="task-item pending">
+                <i class="fas fa-brain"></i> AI Verification
+            </div>
+            <div id="task-STORING" class="task-item pending">
+                <i class="fas fa-database"></i> Storing Results
+            </div>
+            <div id="task-COMPLETE" class="task-item pending">
+                <i class="fas fa-check-circle"></i> Complete
+            </div>
+        </aside>
+
+        <!-- ── Terminal + CTA ── -->
+        <div class="terminal-wrapper">
+            <div class="terminal-window">
+                <div class="terminal-header">
+                    <div class="mac-dots">
+                        <div class="dot dot-r"></div>
+                        <div class="dot dot-y"></div>
+                        <div class="dot dot-g"></div>
+                    </div>
+                    <span class="terminal-title">fds_analysis_engine.stream — job #{{ analysis.id }}</span>
+                    <i class="fas fa-terminal" style="color:rgba(255,255,255,0.1);font-size:0.8rem;"></i>
+                </div>
+
+                <div id="log-container">
+                    <div id="cursor"></div>
+                </div>
+
+                <div id="ai-progress-rail">
+                    <div id="ai-progress-fill"></div>
+                </div>
+
+                <div class="terminal-footer">
+                    <span>FDS_ID: {{ analysis.fds_id }}</span>
+                    <span>REPO_ID: {{ analysis.repo_id }}</span>
+                    <span id="status-display">STATUS: ACTIVE</span>
+                </div>
+            </div>
+
+            <div id="complete-action">
+                <a href="/fds/analysis/{{ analysis.id }}" class="btn-reveal">
+                    <i class="fas fa-chart-bar"></i> View Analysis Results
+                </a>
+            </div>
         </div>
-        <div class="op-details">
-            <h2 id="op-title">Initializing Synapse Engine...</h2>
-            <p id="op-desc">Establishing secure linkage with codebase node and calibrating vectors.</p>
-        </div>
+
     </div>
-
-    <!-- STRATEGIC ROADMAP -->
-    <section class="synapse-track">
-        <div class="synapse-node" id="node-START">
-            <div class="node-orb"><i class="fas fa-power-off"></i></div>
-            <div class="node-label">Ignition</div>
-        </div>
-        <div class="node-connector" id="conn-START"><div class="chevron-arrow"></div></div>
-        
-        <div class="synapse-node" id="node-EXTRACTION">
-            <div class="node-orb"><i class="fas fa-dna"></i></div>
-            <div class="node-label">Vectors</div>
-        </div>
-        <div class="node-connector" id="conn-EXTRACTION"><div class="chevron-arrow"></div></div>
-
-        <div class="synapse-node" id="node-SYNC">
-            <div class="node-orb"><i class="fas fa-sync"></i></div>
-            <div class="node-label">Sync</div>
-        </div>
-        <div class="node-connector" id="conn-SYNC"><div class="chevron-arrow"></div></div>
-
-        <div class="synapse-node" id="node-STRUCTURE">
-            <div class="node-orb"><i class="fas fa-sitemap"></i></div>
-            <div class="node-label">Structure</div>
-        </div>
-        <div class="node-connector" id="conn-STRUCTURE"><div class="chevron-arrow"></div></div>
-
-        <div class="synapse-node" id="node-ANALYZING">
-            <div class="node-orb"><i class="fas fa-microchip"></i></div>
-            <div class="node-label">Analysis</div>
-        </div>
-        <div class="node-connector" id="conn-ANALYZING"><div class="chevron-arrow"></div></div>
-
-        <div class="synapse-node" id="node-FINALIZE">
-            <div class="node-orb"><i class="fas fa-check-double"></i></div>
-            <div class="node-label">Synthesis</div>
-        </div>
-    </section>
-
-    <!-- OBSERVABILITY CONSOLE -->
-    <div class="console-wrapper">
-        <div class="console-header">
-            <div class="console-tag"><i class="fas fa-terminal"></i> engine_core_stream.raw</div>
-            <div class="console-tag" style="color: var(--accent-primary);"><i class="fas fa-shield-halved"></i> link encrypted</div>
-        </div>
-        <div class="console-body" id="log-container"></div>
-    </div>
-
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+(function() {
     const analysisId = {{ analysis.id }};
     const logContainer = document.getElementById('log-container');
-    const knownLogs = new Set();
-    
-    function updateProgress() {
-        fetch(`/fds/analysis/${analysisId}/status_json`)
-            .then(res => res.json())
-            .then(data => {
-                fetch(`/fds/analysis/${analysisId}/logs`)
-                    .then(res => res.json())
-                    .then(logs => {
-                        logs.forEach(log => {
-                            const logKey = `${log.step}-${log.message}`;
-                            if (!knownLogs.has(logKey)) {
-                                const row = document.createElement('div');
-                                row.className = 'log-row';
-                                const ts = new Date(log.created_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                                let stepColor = 'var(--accent-primary)';
-                                if (log.step.includes('COMPLETE')) stepColor = 'var(--accent-success)';
-                                row.innerHTML = `<span class="ts">[${ts}]</span><span class="step" style="color: ${stepColor}">${log.step}</span><span class="msg">${log.message}</span>`;
-                                logContainer.appendChild(row);
-                                logContainer.scrollTop = logContainer.scrollHeight;
-                                knownLogs.add(logKey);
-                                updateStages(log.step);
-                            }
-                        });
+    const cursor       = document.getElementById('cursor');
+    const timerPill    = document.getElementById('timer-pill');
+    const statusDisplay = document.getElementById('status-display');
+    const statusPillText = document.getElementById('status-pill-text');
+    const statusContainer = document.getElementById('status-container');
+    const aiRail       = document.getElementById('ai-progress-rail');
+    const aiFill       = document.getElementById('ai-progress-fill');
+    const completeAction = document.getElementById('complete-action');
+    const pulseDot     = document.querySelector('.pulse-dot');
 
-                        if (data.status === 'complete') {
-                            document.querySelectorAll('.synapse-node').forEach(n => n.classList.add('complete'));
-                            document.querySelectorAll('.node-connector').forEach(c => { c.classList.add('complete'); c.classList.remove('active'); });
-                            document.getElementById('op-title').innerText = 'Analysis Succeeded';
-                            document.getElementById('op-desc').innerText = 'Synthesis complete. Redirecting to analysis matrix results...';
-                            document.getElementById('op-icon').className = 'fas fa-check-circle';
-                            document.getElementById('status-card').style.borderColor = 'var(--accent-success)';
-                            document.getElementById('op-icon').parentElement.style.color = 'var(--accent-success)';
-                            document.getElementById('live-status-text').innerText = "SUCCESS";
-                            setTimeout(() => window.location.href = `/fds/analysis/${analysisId}`, 1500);
-                        } else if (data.status === 'failed') {
-                            document.getElementById('op-title').innerText = 'System Fault';
-                            document.getElementById('op-desc').innerText = 'Critical interruption during codebase mapping. See logs below.';
-                            document.getElementById('op-icon').className = 'fas fa-exclamation-triangle';
-                            document.getElementById('status-card').style.borderColor = 'var(--accent-error)';
-                            document.getElementById('op-icon').parentElement.style.color = 'var(--accent-error)';
-                            document.getElementById('live-status-text').innerText = "FAILED";
-                            document.getElementById('live-status-text').parentElement.style.color = "var(--accent-error)";
-                        } else {
-                            setTimeout(updateProgress, 1500);
-                        }
-                    });
-            });
+    const STEPS = ['INIT','EXTRACTION','CLONING','INDEXING','MAPPING','VERIFYING','STORING','COMPLETE'];
+
+    const STEP_ALIASES = {
+        'START': 'INIT',
+        'INDEXED': 'INDEXING',
+        'FALLBACK': 'EXTRACTION',
+        'STRUCTURE': 'EXTRACTION',
+        'FAILED': 'COMPLETE',
+    };
+
+    const ICONS = {
+        INIT:       'fa-power-off',
+        EXTRACTION: 'fa-dna',
+        CLONING:    'fa-cloud-download-alt',
+        INDEXING:   'fa-sitemap',
+        MAPPING:    'fa-project-diagram',
+        VERIFYING:  'fa-brain',
+        STORING:    'fa-database',
+        COMPLETE:   'fa-check-circle',
+    };
+
+    const AI_MESSAGES = [
+        'Cross-referencing requirements against implementation…',
+        'Evaluating partial implementations…',
+        'Identifying undocumented behaviors…',
+        'Scoring requirement coverage depth…',
+        'Finalising gap analysis report…',
+    ];
+
+    let terminated = false;
+    let elapsed = 0;
+    let lastStep = 'INIT';
+    let aiInterval = null;
+    let aiMsgIdx = 0;
+    let simProgress = 5;
+    const knownLogs = new Set();
+
+    /* ── Timer ── */
+    const timerTick = setInterval(() => {
+        if (terminated) return;
+        elapsed++;
+        const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const s = String(elapsed % 60).padStart(2, '0');
+        timerPill.innerHTML = `<i class="far fa-clock"></i> ${m}:${s}`;
+    }, 1000);
+
+    /* ── Sidebar ── */
+    function normalize(step) {
+        const u = step.toUpperCase();
+        return STEP_ALIASES[u] || u;
     }
 
-    function updateStages(step) {
-        const nodes = ['START', 'EXTRACTION', 'SYNC', 'STRUCTURE', 'ANALYZING', 'FINALIZE'];
-        const stepIndex = nodes.indexOf(step);
-        if (stepIndex !== -1) {
-            nodes.forEach((nodeId, idx) => {
-                const nodeEl = document.getElementById(`node-${nodeId}`);
-                const connEl = document.getElementById(`conn-${nodeId}`);
-                if (idx < stepIndex) nodeEl.classList.add('complete');
-                else if (idx === stepIndex) { nodeEl.classList.add('active'); nodeEl.classList.remove('complete'); }
-                else nodeEl.classList.remove('active', 'complete');
-                if (connEl) {
-                    if (idx < stepIndex) connEl.classList.add('complete');
-                    else if (idx === stepIndex) { connEl.classList.add('active'); connEl.classList.remove('complete'); }
-                    else connEl.classList.remove('active', 'complete');
-                }
-            });
+    function setSidebar(rawStep) {
+        const step = normalize(rawStep);
+        const idx  = STEPS.indexOf(step);
+        if (idx === -1) return;
+        lastStep = step;
 
-            const stepMap = {
-                'START': { title: 'Igniting Neural Core', desc: 'Initializing the analysis environment.', icon: 'fa-atom' },
-                'EXTRACTION': { title: 'Vector Isolation', desc: 'Isolating logic into high-density vectors.', icon: 'fa-dna' },
-                'SYNC': { title: 'Node Synchronization', desc: 'Establishing linkage with target codebase node.', icon: 'fa-sync' },
-                'STRUCTURE': { title: 'Structural Mapping', desc: 'Tracing architecture and identifying entry points.', icon: 'fa-sitemap' },
-                'ANALYZING': { title: 'Neural Analysis', desc: 'Comparing vectors against implementation logic.', icon: 'fa-brain' },
-                'FINALIZE': { title: 'Logic Synthesis', desc: 'Compiling gap report and visualizing visualizations.', icon: 'fa-check-double' }
-            };
-            if (stepMap[step]) {
-                document.getElementById('op-title').innerText = stepMap[step].title;
-                document.getElementById('op-desc').innerText = stepMap[step].desc;
-                document.getElementById('op-icon').className = `fas ${stepMap[step].icon} fa-spin`;
+        STEPS.forEach((s, i) => {
+            const el = document.getElementById(`task-${s}`);
+            if (!el) return;
+            const icon = el.querySelector('i');
+            el.className = 'task-item';
+
+            if (i < idx) {
+                el.classList.add('complete');
+                icon.className = 'fas fa-check-circle';
+            } else if (i === idx) {
+                el.classList.add('active');
+                icon.className = `fas ${ICONS[s] || 'fa-circle-notch'} fa-spin`;
+            } else {
+                el.classList.add('pending');
+                icon.className = `fas ${ICONS[s] || 'fa-circle'}`;
             }
+        });
+    }
+
+    /* ── Log renderer ── */
+    function appendLog(log) {
+        const key = `${log.step}||${log.message}`;
+        if (knownLogs.has(key)) return;
+        knownLogs.add(key);
+
+        const ts = new Date(log.created_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const step = log.step.toUpperCase();
+
+        let tagColor = 'var(--accent-secondary)';
+        if (step.includes('COMPLETE') || step.includes('INDEXED') || step.includes('STORED')) tagColor = '#10b981';
+        if (step.includes('FAIL') || step.includes('ERROR')) tagColor = '#ef4444';
+        if (step.includes('WARN') || step.includes('FALLBACK')) tagColor = '#f59e0b';
+
+        const row = document.createElement('div');
+        row.className = 'log-row';
+        row.innerHTML = `<span class="log-ts">[${ts}]</span><b class="log-tag" style="color:${tagColor}">${step}</b><span class="log-text">${log.message}</span>`;
+        logContainer.insertBefore(row, cursor);
+        logContainer.scrollTo({ top: logContainer.scrollHeight, behavior: 'smooth' });
+
+        setSidebar(step);
+    }
+
+    /* ── AI simulation bar ── */
+    function startAIBar() {
+        if (aiInterval) return;
+        aiRail.style.display = 'block';
+        aiInterval = setInterval(() => {
+            if (terminated) { clearInterval(aiInterval); return; }
+            if (simProgress < 95) simProgress += (100 - simProgress) / 60;
+            aiFill.style.width = simProgress + '%';
+            statusPillText.innerText = AI_MESSAGES[aiMsgIdx % AI_MESSAGES.length];
+            aiMsgIdx++;
+        }, 3500);
+    }
+
+    /* ── Terminate ── */
+    function terminate(status) {
+        terminated = true;
+        clearInterval(timerTick);
+        if (aiInterval) clearInterval(aiInterval);
+        aiRail.style.display = 'none';
+        cursor.style.display = 'none';
+        statusDisplay.innerText = `STATUS: ${status.toUpperCase()}`;
+
+        if (status === 'complete') {
+            setSidebar('COMPLETE');
+            // Mark all complete
+            STEPS.forEach(s => {
+                const el = document.getElementById(`task-${s}`);
+                if (!el) return;
+                el.className = 'task-item complete';
+                el.querySelector('i').className = 'fas fa-check-circle';
+            });
+            statusPillText.innerText = 'SUCCESS';
+            completeAction.style.display = 'block';
+            setTimeout(() => { window.location.href = `/fds/analysis/${analysisId}`; }, 2500);
+        } else {
+            statusPillText.innerText = 'FAILED';
+            statusContainer.style.color = 'var(--accent-error)';
+            pulseDot.style.background    = 'var(--accent-error)';
+            pulseDot.style.boxShadow     = '0 0 10px var(--accent-error)';
+            // Mark active task as failed
+            const activeEl = document.querySelector('.task-item.active');
+            if (activeEl) { activeEl.className = 'task-item failed'; activeEl.querySelector('i').className = 'fas fa-exclamation-circle'; }
         }
     }
 
-    updateProgress();
+    /* ── Poll ── */
+    function poll() {
+        Promise.all([
+            fetch(`/fds/analysis/${analysisId}/status_json`).then(r => r.json()),
+            fetch(`/fds/analysis/${analysisId}/logs`).then(r => r.json()),
+        ]).then(([statusData, logs]) => {
+            logs.forEach(appendLog);
+
+            if (lastStep === 'VERIFYING') startAIBar();
+
+            const s = statusData.status;
+            if (s === 'complete' || s === 'failed') {
+                terminate(s);
+            } else {
+                setTimeout(poll, 1500);
+            }
+        }).catch(() => {
+            if (!terminated) setTimeout(poll, 3000);
+        });
+    }
+
+    // Kick off with INIT active
+    setSidebar('INIT');
+    poll();
+})();
 </script>
 {% endblock %}

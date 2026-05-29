@@ -9,86 +9,31 @@ import subprocess
 import threading
 import requests
 import re
-import random
 import hashlib
 from datetime import datetime, timedelta
 from collections import defaultdict
 
 from config import Config
 from engine import db
+from engine.ai_provider import AIProvider
 from engine.git_manager import GitManager
 from engine.jira_client import JiraClient
+
+_ANALYSIS_TEMP = Config.AI_TEMPERATURE        # classification, risk, narrative
+_JSON_TEMP     = Config.AI_TEMPERATURE_JSON   # structured JSON grouping
 
 class ROIAuditor:
     def __init__(self):
         self.git = GitManager()
         self.jira = JiraClient()
-        self._api_calls = [] # v5.2 Leaky Bucket counter
-        
+        self.ai = AIProvider()
+
         # ── v6.0 Hybrid Audit Infrastructure ──
-        self.lib_path = "/Users/santosh.kumar/Work/ai-code-review/lib/"
+        self.lib_path = os.path.join(Config.BASE_DIR, "lib")
         self.cloc_path = os.path.join(self.lib_path, "cloc-2.08.pl")
-        self.sizer_path = os.path.join(self.lib_path, "git-sizer-1.5.0-darwin-arm64/git-sizer")
+        self.sizer_path = os.path.join(self.lib_path, "git-sizer-1.5.0-darwin-arm64", "git-sizer")
         
-        # ── V4.0 BUSINESS CONTEXT LOADER ──
-        self.business_context = {
-            "current_sprint": "Sprint 24: Wallet Core",
-            "active_epics": [
-                "EPIC-101: Wallet Redemption Engine",
-                "EPIC-102: Merchant Callback API",
-                "EPIC-103: Security & HMAC Implementation",
-                "EPIC-104: Compliance & Regulatory Audit"
-            ],
-            "priority_level": "High - Compliance Deadline April 1st"
-        }
 
-    def _call_gemini(self, prompt, expect_json=True, work_dir=None, attempt=1, model_tier=None, temperature=0.7):
-        """Unified approach aligned with Code Review system using Gemini CLI."""
-        if model_tier is None:
-            model_tier = Config.GEMINI_DEFAULT_MODEL
-
-        now = time.time()
-        self._api_calls = [t for t in self._api_calls if now - t < 60]
-        if len(self._api_calls) >= 3:
-            wait_time = 60 - (now - self._api_calls[0])
-            if wait_time > 0:
-                time.sleep(wait_time)
-        
-        self._api_calls.append(time.time())
-        time.sleep(random.uniform(0.1, 0.5))
-        
-        env = os.environ.copy()
-        env["GOOGLE_CLOUD_PROJECT"] = "elab-code-assist"
-        
-        cmd = [
-            Config.GEMINI_CLI_BIN,
-            "--prompt", prompt,
-            "--approval-mode", "plan",
-            "--sandbox",
-            "--model", model_tier
-        ]
-        if expect_json:
-            cmd.extend(["--output-format", "json"])
-            
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=work_dir, timeout=300)
-            if result.returncode != 0:
-                if "429" in result.stderr and attempt <= 5:
-                    time.sleep(attempt * 5)
-                    return self._call_gemini(prompt, expect_json, work_dir, attempt + 1, model_tier, temperature)
-                raise Exception(f"AI CLI Error: {result.stderr}")
-            
-            raw_text = result.stdout.strip()
-            if not raw_text: raise Exception("Empty response from AI engine")
-            if expect_json:
-                json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
-                return json.loads(json_match.group(0)) if json_match else json.loads(raw_text)
-            return raw_text
-        except Exception as e:
-            if "429" in str(e) and attempt <= 5:
-                time.sleep(attempt * 5)
-                return self._call_gemini(prompt, expect_json, work_dir, attempt + 1, model_tier)
-            raise e
 
     def _extract_branch_context(self, branch, project_key=None):
         if project_key:
@@ -198,7 +143,7 @@ class ROIAuditor:
         Format:\nCATEGORY: [INNOVATION|MAINTENANCE|TECHNICAL_DEBT]\nCONFIDENCE: [0.5-1.0]\nREASONING: ...\nBUSINESS_IMPACT: ..."""
         
         try:
-            res = self._call_gemini(prompt, expect_json=False, work_dir=repo_path)
+            res = self.ai.complete(prompt, work_dir=repo_path, temperature=_ANALYSIS_TEMP)
             cat = self._extract_field(res, 'CATEGORY', 'MAINTENANCE')
             conf = float(self._extract_field(res, 'CONFIDENCE', '0.7'))
             reason = self._extract_field(res, 'REASONING', '')
@@ -397,18 +342,18 @@ class ROIAuditor:
         log = "\n".join([f"{c['sha'][:7]} : {c['message']}" for c in commit_details])
         prompt = f"Group these commits into logical units:\n{log}\nRespond ONLY JSON array: [{{'unit_name': '...', 'intent': '...', 'commits': ['sha']}}]"
         try:
-            res = self._call_gemini(prompt, expect_json=True, work_dir=work_dir)
+            raw = self.ai.complete(prompt, work_dir=work_dir, temperature=_JSON_TEMP)
+            res = self.ai.parse_json(raw, default=[])
             # Robust extraction of the list
             if isinstance(res, dict):
-                # Try to find a list field
                 for key in res:
                     if isinstance(res[key], list):
                         return res[key]
-                # If it's a single group as a dict, wrap it
                 if 'unit_name' in res:
                     return [res]
             return res if isinstance(res, list) else [{"unit_name": "General Activity", "commits": [c['sha'] for c in commit_details]}]
-        except: return [{"unit_name": "General Activity", "commits": [c['sha'] for c in commit_details]}]
+        except Exception:
+            return [{"unit_name": "General Activity", "commits": [c['sha'] for c in commit_details]}]
 
     def _detect_structural_risks(self, group, commit_details, repo_id):
         """Heuristic risk detection with severity levels and specific alerts."""
