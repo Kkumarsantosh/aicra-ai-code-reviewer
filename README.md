@@ -105,6 +105,23 @@ ai-code-review/
 └── workspace/                  # Local directory for cloning and analysing repositories
 ```
 
+### Recent Architectural & Development Updates
+
+AICRA has recently undergone a major architectural refactoring and modernization process to expand provider flexibility, improve codebase security, and optimize data footprints:
+
+1. **Unified AI Engine Integration (`engine/ai_provider.py`):**
+   * Migrated from a single-command subprocess model to a unified, abstract **AI Provider Wrapper** supporting multiple enterprise LLM targets: **OpenAI**, **Anthropic Claude**, and **Google Gemini** (via both Python SDK and native CLI subprocesses).
+   * Configurable on-the-fly inside `config/.env` through `AI_PROVIDER`, supporting customized base URLs (Azure, local proxy servers) and flexible fast/powerful model tiers.
+
+2. **Weekly Unlinked Work Auditor (`engine/roi_auditor.py`):**
+   * Engineered a high-efficiency Git scanner that parses the commit history and containing branch trees to automatically discover and audit "shadow work" missing tracked Jira issue tickets.
+   * Leverages a deterministic rule engine to classify untracked commits into **Routine tasks** (automated bot triggers, package dependency modifications, trivial style formatting) or **Potential Feature Work** based on modified file metrics and character footprint sizes.
+
+3. **Workspace Sanitization & Code Cleanup:**
+   * Deleted all legacy backup review logs, redundant bash triggers, and loose proof-of-concept Python files (such as `check_fds.py` or backup scripts) to minimize repository size.
+   * Centralized all user-editable standards into a clean `/standards` subdirectory at the repository root.
+   * Updated the web frontend branding with high-resolution, custom-resized vector and icon logo assets (`aicra_icon.png`, `aicra_logo_resized.png`).
+
 ---
 
 ## Installation Instructions
