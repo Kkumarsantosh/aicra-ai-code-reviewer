@@ -1,5 +1,9 @@
 # AICRA (AI Code Review and Automation)
 
+<p align="center">
+  <img src="static/aicra_logo.png" alt="AICRA Logo" width="500">
+</p>
+
 AICRA is an advanced developer intelligence dashboard and automated compliance pipeline that orchestrates **AI-Assisted Code Reviews**, **Engineering Return on Investment (ROI) Auditing**, and **Functional Design Specification (FDS) Gap Analysis**. 
 
 Designed for modern engineering leadership and development teams, AICRA connects your actual development activity (Git commits, file structural footprint) with Jira tracking, SonarQube static analysis, and your choice of AI model — **OpenAI GPT-4o**, **Anthropic Claude**, or **Google Gemini** — to ensure complete behavioural and architectural alignment.
