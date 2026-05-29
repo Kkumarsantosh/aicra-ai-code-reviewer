@@ -1,7 +1,7 @@
 # AICRA (AI Code Review and Automation)
 
 <p align="center">
-  <img src="static/aicra_logo.png" alt="AICRA Logo" width="500">
+  <img src="static/aicra_logo_resized.png" alt="AICRA Logo" width="500">
 </p>
 
 AICRA is an advanced developer intelligence dashboard and automated compliance pipeline that orchestrates **AI-Assisted Code Reviews**, **Engineering Return on Investment (ROI) Auditing**, and **Functional Design Specification (FDS) Gap Analysis**. 
